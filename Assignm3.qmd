@@ -1,0 +1,71 @@
+---
+title: "Analytics_assignment3"
+format: html
+editor: visual
+---
+
+## Question 1 : EDA
+
+a\)
+
+```{r, warning=FALSE, message=FALSE}
+#| echo: false
+library(knitr)
+df <- read.table("STA4026_Assignment_Clustering.txt",
+                 header = FALSE)
+#dimension of dataset
+dim <- dim(df)
+kable(dim, col.names = "Dimensions", caption = "The dimensions of the data set")
+#data types
+kable(str(df), caption= "The structure of the data set")
+#missing values
+kable(colSums(is.na(df)), caption ="The number of missing values in each column")
+#quartiles of dataset
+kable(summary(df), caption="A summary of the data statistics")
+#duplicate rows
+dup_rows <- duplicated(df)
+sum(dup_rows)
+```
+
+In the data set , there are 5000 observations and 2 numeric variables (values are all integers) . There are no missing values in the data set. Variable 1 ranges from 89606 to 932954.
+
+For V1, the median (509386) is slightly above the mean (502998), which hints at a very mild left-skew (a few low values pulling the mean down). For V2, the mean (497113) is very slightly above the median (494896), suggesting a tiny right-skew (a few high values pulling the mean up). In both cases, the medians near their means and they have very similar IQRs, indicating the core of the distribution is roughly symmetric.
+
+b\)
+
+The variables are of continous nature and have fairly comparable scales besides variable 2 having a much wider range. Therefore, this as well as there being symmetry in the bulk of the data means that Euclidean distances on standardised values will be better.
+
+DON'T PUT CODE HERE?
+
+```{r, warning=FALSE, message=FALSE}
+#| echo: false
+df_scaled <- scale(df)
+dist_matrix <- dist(df_scaled, method="euclidean")
+
+```
+
+c\)
+
+```{r, warning=FALSE, message=FALSE}
+#| echo: false
+library(GGally)
+df_scaled <- scale(df)
+ggpairs(as.data.frame(df_scaled))
+
+```
+
+We’ve already standardized the data set as a result of choosing the euclidean distance as our metric in the previous question, so it is just a linear rescaling of the axes and won't really change the shape of the graphs/plots.
+
+The marginal density for V1 is clearly multi-modal, with at least two distinct “humps” separated by shallow troughs. One peak below zero and a larger one around +0.5 to +1.0 which suggests there are two or even three natural subgroups in V1. In contrast, V2’s density is largely uni-modal but can be said to be right‐skewed, with most observations clustered near the center and a long tail stretching out past +2. When you plot these together, the scatterplot forms a roughly elliptical, symmetric cloud centered at (0,0) with no clear diagonal stretch and as expected the correlation is nearly zero, so points group in vertically aligned bands corresponding to V1’s modes which is not clearly shown in the plot. V1’s multiple peaks point to splitting clusters along that axis, while V2 adds spread but not distinct clusters, which justifies using a Euclidean distance on the standardized data and expecting roughly spherical clusters.
+
+d\)
+
+```{r, warning=FALSE, message= FALSE}
+#| echo: false
+dist_matrix <- dist(df_scaled, method="euclidean")
+d_vals <- as.vector(dist_matrix)
+hist(d_vals, breaks=50, main="Pairwise distances", xlab="Distance")
+
+```
+
+The distance histogram clealry shows a single, broad peak centered around 1–2.2. This suggests the typical distance between any two observations once both variables are on the same scale. It suggests that if you pick two random data points, they’re most likely to be about two standard deviations apart overall. The bars taper off into a long right‐hand tail reaching out to about 5, which indicates a handful of point-pairs that are far apart (either true outliers or members of very distinct subgroups). At the extreme left, the histogram shape indiactes that there are a few nearly zero distances corresponding to observations that are virtually identical on V1 and V2, meaning they would always merge immediately in a hierarchical tree or sit in the same k‐means cluster. Altogether, this moderate spread, neither all bunched up or wildly dispersed, suggests clustering algorithms will have enough contrast to pull apart dense regions.
