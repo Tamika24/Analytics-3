@@ -4,7 +4,7 @@ format: html
 editor: visual
 ---
 
-## Question 1 : EDA
+# Question 1 : EDA
 
 a\)
 
@@ -161,3 +161,5 @@ plot(2:20, sil_pam, type = "b",
      main = "k-medoids silhouette")
 par(mfrow = c(1,1))
 ```
+
+Both the k-means and k-medoids silhouette curves exhibit two natural “peaks” in the range K=2–20. First, there is a clear local maximum at k=3 (average silhouette ≈ 0.40 for both methods), indicating that three clusters capture the most prominent division in the data, splitting into two clusters loses cohesion, while four or five clusters start to overfragment the main groups. Beyond k=8, the silhouette steadily rises again, peaking around k=15–16 (≈ 0.47 for k-means, ≈ 0.48 for k-medoids), which suggests a much finer partition yields the tightest, most well-separated clusters, but that many clusters may be over‐splitting. Therefore, based on average silhouette alone, two sensible choices emerge for both algorithms: a coarse segmentation at k=3 and a fine-grained segmentation at k=15 (or 16), depending on whether we want to prioritize broader overview or maximum cluster compactness.
