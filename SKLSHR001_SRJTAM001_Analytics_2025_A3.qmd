@@ -50,6 +50,8 @@ The dataset contains 5000 observations of 2 numeric variables, both containing a
 
 Variable 1 (V1) values ranges from 89606 to 932954. The median is slightly above the mean, which hints at a mild left-skew (a few low values pulling the mean down). Variable 2 (V2) values have a much wider range, from 9597 to 977215. The mean is slightly above the median, suggesting a slight right-skew (a few high values pulling the mean up).
 
+Even though their IQRs are similar, the variables have quite different ranges and means, implying a need for standardization.
+
 However, in both cases, the medians are relatively near their respective means, and are roughly centered between the 1st and 3rd quartiles for each variable. This indicates that the core of the distributions are roughly symmetric.
 
 b\)
@@ -58,17 +60,21 @@ Euclidean distance is used as the primary distance metric. This is due to severa
 
 c\)
 
+To explore potential relationships and structure in the data, a pairs plot was constructed using the two standardized variables, V1 and V2.
+
 ```{r, warning=FALSE, message=FALSE}
 #| echo: false
-#| caption: "Pairwise scatterplot"
+#| caption: "Pair plot showing univariate and bivariate distributions for V1 and V2"
 df_scaled <- scale(df)
 ggpairs(as.data.frame(df_scaled))
 
 ```
 
-We’ve already standardized the data set as a result of choosing the euclidean distance as our metric in the previous question, so it is just a linear rescaling of the axes and won't really change the shape of the graphs/plots.
+The univariate distribution for V1 is clearly multi-modal, with at least 3 distinct high-density peaks roughly situated near quartile 1, the median and quartile 2, separated by shallow troughs. This suggests that there are three natural subgroups in V1, which can thus form 3 clusters.
 
-The marginal density for V1 is clearly multi-modal, with at least two distinct “humps” separated by shallow troughs. One peak below zero and a larger one around +0.5 to +1.0 which suggests there are two or even three natural subgroups in V1. In contrast, V2’s density is largely uni-modal but can be said to be right‐skewed, with most observations clustered near the center and a long tail stretching out past +2. When you plot these together, the scatterplot forms a roughly elliptical, symmetric cloud centered at (0,0) with no clear diagonal stretch and as expected the correlation is nearly zero, so points group in vertically aligned bands corresponding to V1’s modes which is not clearly shown in the plot. V1’s multiple peaks point to splitting clusters along that axis, while V2 adds spread but not distinct clusters, which justifies using a Euclidean distance on the standardized data and expecting roughly spherical clusters.
+In contrast, V2’s univariate density is right‐skewed, with most observations clustered near the center and a long tail stretching out to the right towards the maximum. It is largely bimodal with at least 2 distinct high-density peaks situated roughly around quartile 1 and quartile 3, and separated by a discerningly low trough. Thus, two clusters can be formed in this regard.
+
+The pairwise scatterplot forms a roughly elliptical, symmetric cloud centered at (0,0) with no clear diagonal stretch. As expected the correlation between V1 and V2 is nearly zero, indicating that there is an extremely weak positive linear relationship between the variables- essentially no linear relationship and thus both variables contribute independently to the clustering structure. Because there is visually no distinct groups in this plot, this indicates that the clustering structure is not aligned along a single axis. This means the data doesn’t show a clear vertical or horizontal separation and so might be split diagonally or in more complex patterns. This suggests clustering requires looking at combinations of both variables, not just one.
 
 d\)
 
