@@ -4,15 +4,25 @@ format: html
 editor: visual
 ---
 
+```{r, warning=FALSE, message=FALSE}
+#| include: false
+library(cluster)
+library(NbClust)
+library(fpc)
+library(knitr)
+```
+
 # Question 1 : EDA
 
 a\)
 
 ```{r, warning=FALSE, message=FALSE}
 #| echo: false
-library(knitr)
+
 df <- read.table("STA4026_Assignment_Clustering.txt",
                  header = FALSE)
+#check for missing values
+anyNA(df)
 #dimension of dataset
 dim <- dim(df)
 kable(dim, col.names = "Dimensions", caption = "The dimensions of the data set")
@@ -27,7 +37,7 @@ dup_rows <- duplicated(df)
 sum(dup_rows)
 ```
 
-In the data set , there are 5000 observations and 2 numeric variables (values are all integers) . There are no missing values in the data set. Variable 1 ranges from 89606 to 932954.
+The dataset contains 5000 observations of 2 numeric features (i.e. values are all integers) . There are no missing values in the data set. Variable 1 ranges from 89606 to 932954.
 
 For V1, the median (509386) is slightly above the mean (502998), which hints at a very mild left-skew (a few low values pulling the mean down). For V2, the mean (497113) is very slightly above the median (494896), suggesting a tiny right-skew (a few high values pulling the mean up). In both cases, the medians near their means and they have very similar IQRs, indicating the core of the distribution is roughly symmetric.
 
