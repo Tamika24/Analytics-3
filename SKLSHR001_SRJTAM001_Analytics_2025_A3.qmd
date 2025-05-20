@@ -46,49 +46,21 @@ In order to gather descriptive statistics for the data, prior checks were conduc
 kable(summary(df), caption="Tabular summary of the descriptive statistics of the data")     
 ```
 
-```{r}
-#| echo: false
-#| label: fig-skew
-
-# Histogram with density for V1
-ggplot(df, aes(x = df$V1)) +
-  geom_histogram(aes(y = ..density..), bins = 30, fill = "skyblue", color = "black") +
-  geom_density(color = "red", size = 1.2) +
-  ggtitle("Distribution of V1") +
-  xlab("V1") + ylab("Density")
-
-# Histogram with density for V2
-ggplot(df, aes(x = df$V2)) +
-  geom_histogram(aes(y = ..density..), bins = 30, fill = "lightgreen", color = "black") +
-  geom_density(color = "blue", size = 1.2) +
-  ggtitle("Distribution of V2") +
-  xlab("V2") + ylab("Density")
-
-```
-
 The dataset contains 5000 observations of 2 numeric variables, both containing all integer values.
 
 Variable 1 (V1) values ranges from 89606 to 932954. The median is slightly above the mean, which hints at a mild left-skew (a few low values pulling the mean down). Variable 2 (V2) values have a much wider range, from 9597 to 977215. The mean is slightly above the median, suggesting a slight right-skew (a few high values pulling the mean up).
 
-However, in both cases, the medians are near the respective means. Additionally, V1's IQR (`r iqr.v1`) is very similar to V2's IQR (`iqr.v2`). Together, these indicate that the core of the distributions are roughly symmetric.
+However, in both cases, the medians are relatively near their respective means, and are roughly centered between the 1st and 3rd quartiles for each variable. This indicates that the core of the distributions are roughly symmetric.
 
 b\)
 
-Euclidean distance is used as the primary distance metric. This is due to several reasons. Both variables are continuous and numeric. Additionally, despite V2 having a much wider range than V1, the variables are on fairly comparable scales after standardization and will consequently contribute equally to the distance metric. Furthermore, the data is roughly symmetric. This implies balanced variation around the mean, such that the mean is a good central point. Euclidean distance is centered around the mean — so it behaves well under symmetry.
-
-DON'T PUT CODE HERE?
-
-```{r, warning=FALSE, message=FALSE}
-#| echo: false
-df_scaled <- scale(df)
-dist_matrix <- dist(df_scaled, method="euclidean")
-
-```
+Euclidean distance is used as the primary distance metric. This is due to several reasons. Both variables are continuous and numeric. Additionally, despite V2 having a much wider range than V1, the variables are on fairly comparable scales after standardization and will consequently contribute equally to the distance metric. Furthermore, the data is roughly symmetric. This implies balanced variation around the mean, such that the mean is a good central point. Euclidean distance is centered around the mean — so it behaves well under symmetry.
 
 c\)
 
 ```{r, warning=FALSE, message=FALSE}
 #| echo: false
+#| caption: "Pairwise scatterplot"
 df_scaled <- scale(df)
 ggpairs(as.data.frame(df_scaled))
 
