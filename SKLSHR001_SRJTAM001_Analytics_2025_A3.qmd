@@ -1,6 +1,6 @@
 ---
 title: "Analytics_assignment3"
-format: html
+format: pdf
 editor: visual
 ---
 
@@ -17,12 +17,10 @@ library(knitr)
 a\)
 
 ```{r, warning=FALSE, message=FALSE}
-#| echo: false
+#| include: false
 
 df <- read.table("STA4026_Assignment_Clustering.txt",
                  header = FALSE)
-#check for missing values
-anyNA(df)
 #dimension of dataset
 dim <- dim(df)
 kable(dim, col.names = "Dimensions", caption = "The dimensions of the data set")
@@ -35,11 +33,23 @@ kable(summary(df), caption="A summary of the data statistics")
 #duplicate rows
 dup_rows <- duplicated(df)
 sum(dup_rows)
+# IQRs
+iqr.v1 <- IQR(df$V1)
+iqr.v2 <- IQR(df$V2)
 ```
 
-The dataset contains 5000 observations of 2 numeric features (i.e. values are all integers) . There are no missing values in the data set. Variable 1 ranges from 89606 to 932954.
+In order to gather descriptive statistics for the data, prior checks were conducted: no missing values were found in the dataset and all data entries were of "integer" type. Thus, no data cleaning was necessary. The results from our descriptive analysis is outlined below.
 
-For V1, the median (509386) is slightly above the mean (502998), which hints at a very mild left-skew (a few low values pulling the mean down). For V2, the mean (497113) is very slightly above the median (494896), suggesting a tiny right-skew (a few high values pulling the mean up). In both cases, the medians near their means and they have very similar IQRs, indicating the core of the distribution is roughly symmetric.
+```{r}
+#| echo: false
+kable(summary(df), caption="A summary of the data statistics")     
+```
+
+The dataset contains 5000 observations of 2 numeric variables, both containing all integer values.
+
+Variable 1 (V1) values ranges from 89606 to 932954. The median is slightly above the mean, which hints at a mild left-skew (a few low values pulling the mean down). Variable 2 (V2) values have a much wider range, from 9597 to 977215. The mean is slightly above the median, suggesting a slight right-skew (a few high values pulling the mean up).
+
+However, in both cases, the medians are near the respective means. Additionally, V1's IQR (`r iqr.v1`) is very similar to V2's IQR (`iqr.v2`). Together, these indicatie that the core of the distribution is roughly symmetric.
 
 b\)
 
