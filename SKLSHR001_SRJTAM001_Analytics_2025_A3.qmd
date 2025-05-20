@@ -33,9 +33,6 @@ kable(str(df), caption= "The structure of the data set")
 kable(colSums(is.na(df)), caption ="The number of missing values in each column")
 #quartiles of dataset
 kable(summary(df), caption="A summary of the data statistics")
-#duplicate rows
-dup_rows <- duplicated(df)
-sum(dup_rows)
 # IQRs
 iqr.v1 <- IQR(df$V1)
 iqr.v2 <- IQR(df$V2)
@@ -44,15 +41,37 @@ iqr.v2 <- IQR(df$V2)
 In order to gather descriptive statistics for the data, prior checks were conducted: no missing values were found in the dataset and all data entries were of "integer" type. Thus, no data cleaning was necessary. The results from our descriptive analysis is outlined below.
 
 ```{r}
+#|label: tbl-dscrp
 #| echo: false
-kable(summary(df), caption="A summary of the data statistics")     
+kable(summary(df), caption="Tabular summary of the descriptive statistics of the data")     
+```
+
+```{r}
+#| echo: false
+#| label: fig-skew
+#| caption: "Visual summary of the descriptive statistics of the data"
+
+# Histogram with density for V1
+ggplot(df, aes(x = df$V1)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "skyblue", color = "black") +
+  geom_density(color = "red", size = 1.2) +
+  ggtitle("Distribution of V1") +
+  xlab("V1") + ylab("Density")
+
+# Histogram with density for V2
+ggplot(df, aes(x = df$V2)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "lightgreen", color = "black") +
+  geom_density(color = "blue", size = 1.2) +
+  ggtitle("Distribution of V2") +
+  xlab("V2") + ylab("Density")
+
 ```
 
 The dataset contains 5000 observations of 2 numeric variables, both containing all integer values.
 
 Variable 1 (V1) values ranges from 89606 to 932954. The median is slightly above the mean, which hints at a mild left-skew (a few low values pulling the mean down). Variable 2 (V2) values have a much wider range, from 9597 to 977215. The mean is slightly above the median, suggesting a slight right-skew (a few high values pulling the mean up).
 
-However, in both cases, the medians are near the respective means. Additionally, V1's IQR (`r iqr.v1`) is very similar to V2's IQR (`iqr.v2`). Together, these indicatie that the core of the distribution is roughly symmetric.
+However, in both cases, the medians are near the respective means. Additionally, V1's IQR (`r iqr.v1`) is very similar to V2's IQR (`iqr.v2`). Together, these indicatie that the core of the distributions are roughly symmetric.
 
 b\)
 
