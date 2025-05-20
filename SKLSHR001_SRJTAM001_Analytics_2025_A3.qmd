@@ -71,7 +71,7 @@ The dataset contains 5000 observations of 2 numeric variables, both containing a
 
 Variable 1 (V1) values ranges from 89606 to 932954. The median is slightly above the mean, which hints at a mild left-skew (a few low values pulling the mean down). Variable 2 (V2) values have a much wider range, from 9597 to 977215. The mean is slightly above the median, suggesting a slight right-skew (a few high values pulling the mean up).
 
-However, in both cases, the medians are near the respective means. Additionally, V1's IQR (`r iqr.v1`) is very similar to V2's IQR (`iqr.v2`). Together, these indicatie that the core of the distributions are roughly symmetric.
+However, in both cases, the medians are near the respective means. Additionally, V1's IQR (`r iqr.v1`) is very similar to V2's IQR (`iqr.v2`). Together, these indicate that the core of the distributions are roughly symmetric.
 
 b\)
 
