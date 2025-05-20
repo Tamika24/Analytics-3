@@ -10,6 +10,9 @@ library(cluster)
 library(NbClust)
 library(fpc)
 library(knitr)
+library(GGally)
+library(parallel)
+library(corrplot)
 ```
 
 # Question 1 : EDA
@@ -68,7 +71,6 @@ c\)
 
 ```{r, warning=FALSE, message=FALSE}
 #| echo: false
-library(GGally)
 df_scaled <- scale(df)
 ggpairs(as.data.frame(df_scaled))
 
@@ -88,7 +90,7 @@ hist(d_vals, breaks=50, main="Pairwise distances", xlab="Distance")
 
 ```
 
-The distance histogram clealry shows a single, broad peak centered around 1–2.2. This suggests the typical distance between any two observations once both variables are on the same scale. It suggests that if you pick two random data points, they’re most likely to be about two standard deviations apart overall. The bars taper off into a long right‐hand tail reaching out to about 5, which indicates a handful of point-pairs that are far apart (either true outliers or members of very distinct subgroups). At the extreme left, the histogram shape indiactes that there are a few nearly zero distances corresponding to observations that are virtually identical on V1 and V2, meaning they would always merge immediately in a hierarchical tree or sit in the same k‐means cluster. Altogether, this moderate spread, neither all bunched up or wildly dispersed, suggests clustering algorithms will have enough contrast to pull apart dense regions.
+The distance histogram clearly shows a single, broad peak centered around 1–2.2. This suggests the typical distance between any two observations once both variables are on the same scale. It suggests that if you pick two random data points, they’re most likely to be about two standard deviations apart overall. The bars taper off into a long right‐hand tail reaching out to about 5, which indicates a handful of point-pairs that are far apart (either true outliers or members of very distinct subgroups). At the extreme left, the histogram shape indicates that there are a few nearly zero distances corresponding to observations that are virtually identical on V1 and V2, meaning they would always merge immediately in a hierarchical tree or sit in the same k‐means cluster. Altogether, this moderate spread, neither all bunched up or wildly dispersed, suggests clustering algorithms will have enough contrast to pull apart dense regions.
 
 e\)
 
@@ -103,21 +105,21 @@ outliers <- which(avg_d > mu + 2*sigma)       # those beyond 2 SD above the mean
 outliers_top10 <- head(order(avg_d, decreasing=TRUE), 10)
 
 #####USING BOXPLOTS HERE, NOT SURE WHICH WAY TO DO IT
-# 1. Compute each point’s average distance
+# Compute each point’s average distance
 d_mat     <- as.matrix(dist(df_scaled))
 avg_d     <- rowMeans(d_mat)
 
-# 2. Boxplot the average distances
+# Boxplot the average distances
 boxplot(avg_d, main="Avg. Distance to Other Points",
         ylab="Avg Euclidean Distance")
 
-# 3. Identify those beyond the upper whisker (= Q3 + 1.5*IQR)
+#Identify those beyond the upper whisker (= Q3 + 1.5*IQR)
 stats     <- boxplot.stats(avg_d)$stats    # [1]=min [2]=Q1 [3]=med [4]=Q3 [5]=max
 upper_cut <- stats[4] + 1.5*(stats[4] - stats[2])
 outliers  <- which(avg_d > upper_cut)
 length(outliers)  # how many we found
 
-# 4. If more than 10, take the top 10 by avg_d
+#If more than 10, take the top 10 by avg_d
 outliers_top10 <- head(order(avg_d[outliers], decreasing=TRUE), 10)
 outliers[outliers_top10]
 
@@ -128,12 +130,11 @@ The 10 observations with the largest average distance are our outliers. These po
 f\)
 
 ```{r}
-# 1. Compute the correlation matrix on the standardized data
+#Compute the correlation matrix on the standardized data
 cor_mat <- cor(df_scaled)
 kable(cor_mat, caption="The correlation matrix on the standardized data")
 
-# 2. (Optional) Visualise
-library(corrplot)
+#Visualise
 corrplot(
   cor_mat,
   method     = "circle",        # or "shade"/"pie" etc for the shapes
@@ -150,14 +151,13 @@ The diagonals are 1 because each variable is perfectly correlated with itself. T
 
 g\)
 
-Yes, we would standardize the data before computing any euclidean distances which is the distance metric we picked in the beginning. We would do this because the raw scales of the variables span hundreds of thousands, so this will drastically influence our clustering algorithms. The euclidean distance is calculated as the square root of the sum of the squares of the differences between corresponding coordinates. Without standardisation, whichever variable has the largest absolute spread will dominate and lead to skewed results. By standardising, each variable has equal contribution. Since both variables showed similar IQRs and no extreme skew in their middle ranges, standardising simply aligns their scales without distorting the multimodal pattern in V1 or the slight skew in V2, ensuring our clustering sees genuine structure, not scale artifacts.
+Yes, we would standardize the data before computing any euclidean distances which is the distance metric we picked in the beginning. We would do this because the raw scales of the variables span hundreds of thousands, so this will drastically influence our clustering algorithms. The euclidean distance is calculated as the square root of the sum of the squares of the differences between corresponding coordinates. Without standardization, whichever variable has the largest absolute spread will dominate and lead to skewed results. By standardizing, each variable has equal contribution. Since both variables showed similar IQRs and no extreme skew in their middle ranges, standardizing simply aligns their scales without distorting the multi modal pattern in V1 or the slight skew in V2, ensuring our clustering sees genuine structure, not scale artifacts.
 
 # Question 2
 
 a\)
 
 ```{r, cache=TRUE}
-library(cluster)
 #Compute average silhouette for k-means
 sil_km <- sapply(2:20, function(K) {
   km  <- kmeans(df_scaled, centers = K, nstart = 50, iter.max = 100)
@@ -182,4 +182,144 @@ plot(2:20, sil_pam, type = "b",
 par(mfrow = c(1,1))
 ```
 
-Both the k-means and k-medoids silhouette curves exhibit two natural “peaks” in the range K=2–20. First, there is a clear local maximum at k=3 (average silhouette ≈ 0.40 for both methods), indicating that three clusters capture the most prominent division in the data, splitting into two clusters loses cohesion, while four or five clusters start to overfragment the main groups. Beyond k=8, the silhouette steadily rises again, peaking around k=15–16 (≈ 0.47 for k-means, ≈ 0.48 for k-medoids), which suggests a much finer partition yields the tightest, most well-separated clusters, but that many clusters may be over‐splitting. Therefore, based on average silhouette alone, two sensible choices emerge for both algorithms: a coarse segmentation at k=3 and a fine-grained segmentation at k=15 (or 16), depending on whether we want to prioritize broader overview or maximum cluster compactness.
+Both the k-means and k-medoids silhouette curves exhibit two natural “peaks” in the range K=2–20. First, there is a clear local maximum at k=3 (average silhouette ≈ 0.40 for both methods), indicating that three clusters capture the most prominent division in the data, splitting into two clusters loses cohesion, while four or five clusters start to over fragment the main groups. Beyond k=8, the silhouette steadily rises again, peaking around k=15–16 (≈ 0.47 for k-means, ≈ 0.48 for k-medoids), which suggests a much finer partition yields the tightest, most well-separated clusters, but that many clusters may be over‐splitting. Therefore, based on average silhouette alone, two sensible choices emerge for both algorithms: a coarse segmentation at k=3 and a fine-grained segmentation at k=15 (or 16), depending on whether we want to prioritize broader overview or maximum cluster compactness.
+
+b\)
+
+```{r}
+#Sensitivity for k-means at K = 3
+set.seed(123)
+K <- 3
+n_runs <- 100
+
+#k-means n_runs times with random init (nstart=1 each time)
+wss_km <- replicate(n_runs, {
+  km <- kmeans(df_scaled, centers = K, nstart = 1, iter.max = 100)
+  km$tot.withinss
+})
+
+hist(wss_km, breaks = 20,
+     main = "Histogram of total WSS over 100 k-means inits",
+     xlab = "Total within-cluster SS")
+#a density estimate
+plot(density(wss_km),
+     main = "Density of WSS over 100 k-means inits",
+     xlab = "Total within-cluster SS")
+abline(v = mean(wss_km), col = "blue", lwd = 2)
+abline(v = median(wss_km), col = "red", lwd = 2)
+legend("topright",
+       legend = c("Mean", "Median"),
+       col    = c("blue", "red"),
+       lwd    = 2)
+
+#Best two initializations
+best_km <- order(wss_km)[1:2]
+wss_km[best_km]
+
+
+#Sensitivity for k-medoids (PAM) at K = 3
+#to introduce randomness we use CLARA,which runs PAM on random subsamples:
+
+set.seed(123)
+sil_clara <- replicate(n_runs, {
+  clara_res <- cluster::clara(df_scaled, k = K, samps = 5, pamLike = TRUE)
+  mean(cluster::silhouette(clara_res$clustering, dist_matrix)[, "sil_width"])
+})
+
+#boxplot of avg. silhouette
+boxplot(sil_clara,
+        main = paste("CLARA (k-medoids) avg. silhouette over", n_runs, "samps (K=",K,")"),
+        ylab = "Avg. silhouette")
+
+# Histogram of silhouette values
+hist(sil_clara, breaks = 20,
+     main = "Histogram of avg. silhouette over 100 CLARA runs",
+     xlab = "Avg. silhouette",
+     ylab = "Frequency")
+
+# Density plot
+plot(density(sil_clara),
+     main = "Density of avg. silhouette (CLARA)",
+     xlab = "Avg. silhouette")
+abline(v = mean(sil_clara), col = "blue", lwd = 2)
+abline(v = median(sil_clara), col = "red",  lwd = 2)
+legend("topright",
+       legend = c("Mean", "Median"),
+       col    = c("blue", "red"),
+       lwd    = 2)
+
+#Best two CLARA runs by silhouette
+best_clara <- order(sil_clara, decreasing = TRUE)[1:2]
+best_clara
+
+```
+
+For k=3, we ran k-means 100 times and plotted the histogram (and density) of the total within-cluster sum of squares (WSS) over those runs. As seen in the histogram, the WSS took largely to only 3 ranges of values. A small left‐hand bar at 3810, a tall middle bar around 3820 , and a short right‐hand bar \>4000.
+
+Because most of the runs (more than half) fall in the two left bars , especially the tall middle one which is just slightly above the absolute minimum, the algorithm is extremely stable. This means that almost any random start lands in the optimal or near-optimal bin. The two optimal configurations are the runs that achieved the absolute minimum WSS of 3801.603.
+
+EXPLAIN CLARA
+
+c\)
+
+```{r}
+# Number of random inits
+n_runs <- 500    
+K      <- 3
+
+# Prepare cluster
+ncores <- detectCores() - 1
+cl     <- makeCluster(ncores)
+
+# Export data and packages to each worker
+clusterExport(cl, c("df_scaled", "K"))
+clusterEvalQ(cl, { library(cluster) })
+
+#Parallel k-means WSS over n_runs
+wss_vals <- parSapply(cl, 1:n_runs, function(i) {
+  # one single-start kmeans
+  km <- kmeans(df_scaled, centers = K, nstart = 1, iter.max = 100)
+  km$tot.withinss
+})
+
+#Parallel CLARA silhouette over n_runs
+sil_vals <- parSapply(cl, 1:n_runs, function(i) {
+  clara_res <- clara(df_scaled, k = K, samps = 5, pamLike = TRUE)
+  mean(silhouette(clara_res$clustering,
+                  dist(df_scaled, method = "euclidean"))[, "sil_width"])
+})
+
+stopCluster(cl) 
+
+# Quick summaries
+summary(wss_vals)
+sd(wss_vals)
+
+summary(sil_vals)
+sd(sil_vals)
+```
+
+d\)
+
+```{r}
+#Gap statistic for k-means on the scaled data
+set.seed(123)
+gap_km <- clusGap(
+  df_scaled,
+  FUN       = kmeans,
+  K.max     = 10,    # test K = 1..10
+  B         = 50,    # 50 bootstrap samples
+  verbose   = FALSE
+)
+
+#Plot the Gap statistic
+plot(
+  gap_km,
+  main = "Gap Statistic vs. K (k-means)",
+  xlab = "Number of clusters K",
+  ylab = "Gap statistic"
+)
+
+#Extract suggested K
+print(gap_km, method = "firstmax")
+```
