@@ -13,6 +13,7 @@ library(knitr)
 library(GGally)
 library(parallel)
 library(corrplot)
+library(ggplot2)
 ```
 
 # Question 1 : EDA
