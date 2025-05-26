@@ -113,8 +113,9 @@ At the extreme left, the histogram shape indicates that there are a few nearly-z
 
 e\)
 
-```{r, message=FALSE, warning=FALSE}
+```{r,  message=FALSE, warning=FALSE}
 #| label: tbl-outlier
+
 centroid <- colMeans(df_scaled)
 euclidean_dist <- apply(df_scaled, 1, function(row) sqrt(sum((row - centroid)^2))) # scaled multivariate euclidean distance of each obs from mean of respective variable
 
@@ -122,20 +123,6 @@ euclidean_dist <- apply(df_scaled, 1, function(row) sqrt(sum((row - centroid)^2)
 k <- 10
 top_k_indices <- order(euclidean_dist, decreasing = TRUE)[1:k]
 euclidean_outliers <- df[top_k_indices, ]  # Original data points
-
-iqr_flags <- sapply(df, function(x) {
-  Q1 <- quantile(x, 0.25)
-  Q3 <- quantile(x, 0.75)
-  IQR_val <- Q3 - Q1
-  lower <- Q1 - 1.5 * iqr.v1
-  upper <- Q3 + 1.5 * iqr.v2
-  x < lower | x > upper
-})
-
-# Combine per-variable IQR flags (TRUE if outlier in any variable)
-univariate_outliers_indices <- which(apply(iqr_flags, 1, any))
-iqr_outliers <- df[univariate_outliers_indices, ]
-
 
 outlier_table <- data.frame(
   Observation = top_k_indices,
@@ -154,9 +141,9 @@ kable(outlier_table, row.names = TRUE, caption="Top 10 outliers, with their obse
 
 Outliers were identified to ensure that extreme values do not distort the clustering process. Since k-means is highly sensitive to extreme points as it uses the mean as the cluster center, and even k-medoids can be affected, it is important to detect outliers early.
 
-Since we have a 2 dimensional dataset, we used a multivariate approach to detecting outliers: we calculated the standardised Euclidean distance between the observations and the centroid, and then selected those with the 10 largest distances. This approach takes both variables together into account and identifies points that are jointly far from the center.
+Since we have a 2 dimensional dataset, we used a multivariate approach to detecting outliers: we calculated the standardised Euclidean distance between the observations and the centroid, and then selected those with the 10 largest distances. This approach takes both variables together into account and identifies points that are jointly far from the center.
 
-The only shortfall of this method would be that it does not flag observations that are very extreme in just one variable. However, the pairwise scatter plot in @fig-pairs indicates that no observation has this quality, and so our method is well-justified. Thus, we have accounted for both marginal and joint outliers.
+The only shortfall of this method would be that it does not flag observations that are very extreme in just one variable. CODE TO CHECK...However, the pairwise scatter plot in @fig-pairs indicates that no observation has this quality, and so our method is well-justified. Thus, we have accounted for both marginal and joint outliers.
 
 f\)
 
