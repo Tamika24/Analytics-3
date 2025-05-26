@@ -113,21 +113,8 @@ At the extreme left, the histogram shape indicates that there are a few nearly-z
 
 e\)
 
-<<<<<<< HEAD
-```{r}
-#| label: tbl-outlier
-=======
-We will compute the average distance for each observation i to all other points in the distance matrix:
-
 ```{r, message=FALSE, warning=FALSE}
-#####USING AVG DIST AND 2 STAND DEV TO GET OUTLIERS
-avg_d   <- rowMeans(as.matrix(dist_matrix))
-mu      <- mean(avg_d)
-sigma   <- sd(avg_d)
-outliers <- which(avg_d > mu + 2*sigma)       # those beyond 2 SD above the mean
-outliers_top10 <- head(order(avg_d, decreasing=TRUE), 10)
->>>>>>> 7cb661c2fcae5acd0719cdaa8dbff2e9aa0c50d9
-
+#| label: tbl-outlier
 centroid <- colMeans(df_scaled)
 euclidean_dist <- apply(df_scaled, 1, function(row) sqrt(sum((row - centroid)^2))) # scaled multivariate euclidean distance of each obs from mean of respective variable
 
@@ -167,19 +154,14 @@ kable(outlier_table, row.names = TRUE, caption="Top 10 outliers, with their obse
 
 Outliers were identified to ensure that extreme values do not distort the clustering process. Since k-means is highly sensitive to extreme points as it uses the mean as the cluster center, and even k-medoids can be affected, it is important to detect outliers early.
 
-Since we have a 2 dimensional dataset, we used a multivariate approach to detecting outliers: we calculated the standardised Euclidean distance between the observations and the centroid, and then selected those with the 10 largest distances. This approach takes both variables together into account and identifies points that are jointly far from the center.
+Since we have a 2 dimensional dataset, we used a multivariate approach to detecting outliers: we calculated the standardised Euclidean distance between the observations and the centroid, and then selected those with the 10 largest distances. This approach takes both variables together into account and identifies points that are jointly far from the center.
 
-The only shortfall of this method would be that it does not flag observations that are very extreme in just one variable. CODE TO CHECK...However, the pairwise scatter plot in @fig-pairs indicates that no observation has this quality, and so our method is well-justified. Thus, we have accounted for both marginal and joint outliers.
+The only shortfall of this method would be that it does not flag observations that are very extreme in just one variable. However, the pairwise scatter plot in @fig-pairs indicates that no observation has this quality, and so our method is well-justified. Thus, we have accounted for both marginal and joint outliers.
 
 f\)
 
-<<<<<<< HEAD
-```{r}
-#Compute the correlation matrix on the standardised data
-=======
 ```{r, message=FALSE, warning=FALSE}
 #Compute the correlation matrix on the standardized data
->>>>>>> 7cb661c2fcae5acd0719cdaa8dbff2e9aa0c50d9
 cor_mat <- cor(df_scaled)
 kable(cor_mat, caption="The correlation matrix on the standardised data")
 
