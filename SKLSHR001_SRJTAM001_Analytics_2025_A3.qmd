@@ -13,6 +13,7 @@ library(knitr)
 library(GGally)
 library(parallel)
 library(corrplot)
+library(ggplot2)
 ```
 
 # Question 1 : EDA
@@ -112,8 +113,20 @@ At the extreme left, the histogram shape indicates that there are a few nearly-z
 
 e\)
 
+<<<<<<< HEAD
 ```{r}
 #| label: tbl-outlier
+=======
+We will compute the average distance for each observation i to all other points in the distance matrix:
+
+```{r, message=FALSE, warning=FALSE}
+#####USING AVG DIST AND 2 STAND DEV TO GET OUTLIERS
+avg_d   <- rowMeans(as.matrix(dist_matrix))
+mu      <- mean(avg_d)
+sigma   <- sd(avg_d)
+outliers <- which(avg_d > mu + 2*sigma)       # those beyond 2 SD above the mean
+outliers_top10 <- head(order(avg_d, decreasing=TRUE), 10)
+>>>>>>> 7cb661c2fcae5acd0719cdaa8dbff2e9aa0c50d9
 
 centroid <- colMeans(df_scaled)
 euclidean_dist <- apply(df_scaled, 1, function(row) sqrt(sum((row - centroid)^2))) # scaled multivariate euclidean distance of each obs from mean of respective variable
@@ -160,8 +173,13 @@ The only shortfall of this method would be that it does not flag observations th
 
 f\)
 
+<<<<<<< HEAD
 ```{r}
 #Compute the correlation matrix on the standardised data
+=======
+```{r, message=FALSE, warning=FALSE}
+#Compute the correlation matrix on the standardized data
+>>>>>>> 7cb661c2fcae5acd0719cdaa8dbff2e9aa0c50d9
 cor_mat <- cor(df_scaled)
 kable(cor_mat, caption="The correlation matrix on the standardised data")
 
@@ -190,7 +208,7 @@ Since the variables are nearly uncorrelated as seen in @fig-pairs, their indivi
 
 a\)
 
-```{r, cache=TRUE}
+```{r, cache=TRUE, message=FALSE, warning=FALSE}
 #Compute average silhouette for k-means
 sil_km <- sapply(2:20, function(K) {
   km  <- kmeans(df_scaled, centers = K, nstart = 50, iter.max = 100)
@@ -219,140 +237,267 @@ Both the k-means and k-medoids silhouette curves exhibit two natural “peaks”
 
 b\)
 
-```{r}
-#Sensitivity for k-means at K = 3
-set.seed(123)
-K <- 3
-n_runs <- 100
+Here, we've chosen to demonstrate the sensitivity of the selected number of clusters with k=15-16 (It's assumed from the question that we should chose one selected number of clusters from the previous question and use that in this question)
 
-#k-means n_runs times with random init (nstart=1 each time)
-wss_km <- replicate(n_runs, {
-  km <- kmeans(df_scaled, centers = K, nstart = 1, iter.max = 100)
-  km$tot.withinss
+```{r, cache=TRUE, warning=FALSE, message=FALSE}
+# Your chosen K values and number of replicates
+k_vals <- c(15, 16)
+runs   <- 100
+
+# Define a function that does 'runs' single-start k-means
+# and returns the vector of mean silhouette widths
+kmeans_run <- function(dat, k, runs) {
+  replicate(runs, {
+    #run k-means with a single random start
+    km <- kmeans(dat,
+                 centers  = k,
+                 nstart   = 1,
+                 iter.max = 100)
+    #compute its silhouette (on the precomputed dist)
+    ss <- silhouette(km$cluster, dist_matrix)
+    #return the average silhouette width
+    mean(ss[, "sil_width"])
+  })
+}
+
+#Run it for each K
+sil_results <- lapply(k_vals, function(k) {
+  sils <- kmeans_run(df_scaled, k, runs)
+  # Quickly report summary stats
+  cat("\n--- K =", k, "---\n")
+  print(summary(sils))
+  cat("SD =", sd(sils), "\n")
+  # Return the raw vector for plotting
+  sils
 })
+names(sil_results) <- paste0("K", k_vals)
 
-hist(wss_km, breaks = 20,
-     main = "Histogram of total WSS over 100 k-means inits",
-     xlab = "Total within-cluster SS")
-#a density estimate
-plot(density(wss_km),
-     main = "Density of WSS over 100 k-means inits",
-     xlab = "Total within-cluster SS")
-abline(v = mean(wss_km), col = "blue", lwd = 2)
-abline(v = median(wss_km), col = "red", lwd = 2)
-legend("topright",
-       legend = c("Mean", "Median"),
-       col    = c("blue", "red"),
-       lwd    = 2)
-
-#Best two initializations
-best_km <- order(wss_km)[1:2]
-wss_km[best_km]
-
-
-#Sensitivity for k-medoids (PAM) at K = 3
-#to introduce randomness we use CLARA,which runs PAM on random subsamples:
-
-set.seed(123)
-sil_clara <- replicate(n_runs, {
-  clara_res <- cluster::clara(df_scaled, k = K, samps = 5, pamLike = TRUE)
-  mean(cluster::silhouette(clara_res$clustering, dist_matrix)[, "sil_width"])
-})
-
-#boxplot of avg. silhouette
-boxplot(sil_clara,
-        main = paste("CLARA (k-medoids) avg. silhouette over", n_runs, "samps (K=",K,")"),
-        ylab = "Avg. silhouette")
-
-# Histogram of silhouette values
-hist(sil_clara, breaks = 20,
-     main = "Histogram of avg. silhouette over 100 CLARA runs",
+#Visualise side by side
+par(mfrow = c(1, length(k_vals)))
+for(i in seq_along(k_vals)) {
+  k <- k_vals[i]
+  sils <- sil_results[[i]]
+  boxplot(sils,
+          main = paste("k-means avg. silhouette\nK =", k),
+          ylab = "Avg. silhouette")
+}
+par(mfrow = c(1,1))
+par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
+# Density for K = 15
+d15 <- density(sil_results[["K15"]])
+plot(d15,
+     main = "Density of Avg. Silhouette\nk-means (K = 15)",
      xlab = "Avg. silhouette",
-     ylab = "Frequency")
-
-# Density plot
-plot(density(sil_clara),
-     main = "Density of avg. silhouette (CLARA)",
-     xlab = "Avg. silhouette")
-abline(v = mean(sil_clara), col = "blue", lwd = 2)
-abline(v = median(sil_clara), col = "red",  lwd = 2)
+     ylab = "Density",
+     lwd  = 2)
+abline(v = mean(sil_results[["K15"]]), col = "blue", lwd = 1, lty = 2)
+abline(v = median(sil_results[["K15"]]), col = "red",  lwd = 1, lty = 2)
 legend("topright",
        legend = c("Mean", "Median"),
        col    = c("blue", "red"),
-       lwd    = 2)
+       lwd    = 1,
+       lty    = 2,
+       cex    = 0.8)
 
-#Best two CLARA runs by silhouette
-best_clara <- order(sil_clara, decreasing = TRUE)[1:2]
-best_clara
+# Density for K = 16
+d16 <- density(sil_results[["K16"]])
+plot(d16,
+     main = "Density of Avg. Silhouette\nk-means (K = 16)",
+     xlab = "Avg. silhouette",
+     ylab = "Density",
+     lwd  = 2)
+abline(v = mean(sil_results[["K16"]]), col = "blue", lwd = 1, lty = 2)
+abline(v = median(sil_results[["K16"]]), col = "red",  lwd = 1, lty = 2)
+legend("topright",
+       legend = c("Mean", "Median"),
+       col    = c("blue", "red"),
+       lwd    = 1,
+       lty    = 2,
+       cex    = 0.8)
+
+par(mfrow = c(1, 1))
+#Pick the two best runs for each K
+best_runs <- lapply(sil_results, function(sils) {
+  idx <- order(sils, decreasing = TRUE)[1:2]
+  data.frame(run = idx, sil = sils[idx])
+})
+names(best_runs) <- paste0("K", k_vals)
+
+best_runs
+
 
 ```
 
-For k=3, we ran k-means 100 times and plotted the histogram (and density) of the total within-cluster sum of squares (WSS) over those runs. As seen in the histogram, the WSS took largely to only 3 ranges of values. A small left‐hand bar at 3810, a tall middle bar around 3820 , and a short right‐hand bar \>4000.
+For k=15 over 100 single-start k-means runs, the average silhouette widths ranged from about 0.405 to 0.479, with a median of 0.468 and a mean of 0.462 (SD ≈ 0.015). For k=16, the range was roughly 0.433–0.476, median 0.473, mean 0.467 (SD ≈ 0.011). In both cases the interquartile ranges (Q3–Q1) are very narrow (\~0.016 for k=15, \~0.011 for k=16), indicating that most random starts yield silhouettes within 1–2% of their respective medians.
 
-Because most of the runs (more than half) fall in the two left bars , especially the tall middle one which is just slightly above the absolute minimum, the algorithm is extremely stable. This means that almost any random start lands in the optimal or near-optimal bin. The two optimal configurations are the runs that achieved the absolute minimum WSS of 3801.603.
+Despite the higher complexity of 15 or 16 clusters, k-means remains reasonably stable, the SDs are small relative to the means, and the majority of runs cluster within a tight band around the median silhouette. The slightly larger spread for k=15 (SD 0.015 vs. 0.011) suggests k=16 is marginally more robust to initialization. We would pick the two runs with the highest silhouette widths in each case as our “optimal” initializations, but given the low variability, any run in the top quartile would produce nearly the same clustering quality.
 
-EXPLAIN CLARA
+The boxplot for k=15 shows the IQR lies between about 0.46 and 0.48 with no outliers, meaning nearly all starts yield very similar cluster quality. For k=16, the IQR is equally narrow but a few dots around 0.43–0.44 flag rare runs that fell into suboptimal basins. Because both boxes are short relative to the silhouette scale and their medians sit near the top of each IQR, we conclude that k-means at these k values are highly robust to initialization.
+
+```{r, cache=TRUE, message=FALSE, warning=FALSE}
+set.seed(123)
+k_vals  <- c(15, 16)
+n_runs  <- 100
+n_samps <- 5   # number of subsamples per CLARA run
+
+#Function to run CLARA with proper arguments and return avg silhouette
+clara_run <- function(dat, diss_mat, k, runs, samples = 5) {
+  replicate(runs, {
+    # 'samples' is the number of subsamples; clara decides sampsize automatically
+    clara_res <- clara(dat, k = k, samples = samples, pamLike = TRUE)
+    sil       <- silhouette(clara_res$clustering, diss_mat)
+    mean(sil[, "sil_width"])
+  })
+}
+
+#Run sensitivity for each K, summarise and store results
+sil_clara_results <- lapply(k_vals, function(k) {
+  sils <- clara_run(df_scaled, dist_matrix, k, n_runs, samples = n_samps)
+  cat("\n--- K =", k, "---\n")
+  print(summary(sils))
+  cat("SD =", round(sd(sils), 4), "\n")
+  sils
+})
+names(sil_clara_results) <- paste0("K", k_vals)
+
+#Boxplots side‐by‐side
+par(mfrow = c(1, length(k_vals)), mar = c(4, 4, 2, 1))
+for(i in seq_along(k_vals)) {
+  k    <- k_vals[i]
+  sils <- sil_clara_results[[i]]
+  boxplot(sils,
+          main  = paste("CLARA silhouette\nK =", k),
+          ylab  = "Avg. silhouette",
+          range = 0)
+}
+par(mfrow = c(1, 1))
+
+par(mfrow = c(1, length(k_vals)), mar = c(4,4,2,1))
+
+for(i in seq_along(k_vals)) {
+  k    <- k_vals[i]
+  sils <- sil_clara_results[[i]]
+  
+  # Compute density
+  d <- density(sils)
+  
+  # Plot density
+  plot(d,
+       main = paste("CLARA silhouette density\nK =", k),
+       xlab = "Avg. silhouette",
+       ylab = "Density",
+       lwd  = 2)
+  
+  # Mark mean & median
+  abline(v = mean(sils), col = "blue", lty = 2, lwd = 1)
+  abline(v = median(sils), col = "red",  lty = 2, lwd = 1)
+  
+  # Legend
+  legend("topright",
+         legend = c("Mean", "Median"),
+         col    = c("blue", "red"),
+         lty    = 2,
+         lwd    = 1,
+         cex    = 0.8)
+}
+
+par(mfrow = c(1,1))
+#Identify the two best runs (highest silhouette) for each K
+best_clara <- lapply(sil_clara_results, function(sils) {
+  idx <- order(sils, decreasing = TRUE)[1:2]
+  data.frame(run       = idx,
+             silhouette = round(sils[idx], 4))
+})
+names(best_clara) <- paste0("K", k_vals)
+
+best_clara
+
+
+```
+
+For both k=15 and k=16, all 100 CLARA runs returned the exact same average silhouette widths—0.4416 for k=15 and 0.4368 for k=16, meaning the minimum, first quartile, median, mean, third quartile and maximum all coincide, and the standard deviation is zero. The resulting boxplots collapse to a single line and the density estimates form a degenerate smooth bump at that one value.
+
+This complete lack of spread tells us that, under CLARA’s subsampling (with 5 subsamples each of size (n/5 ), the medoid‐selection and final clustering are perfectly reproducible: every random subsample leads to the same clustering quality. In practice, that means zero sensitivity to initialization, CLARA is so stable here that there are no “better” or “worse” starts to distinguish.
 
 c\)
 
-```{r}
-# Number of random inits
-n_runs <- 500    
-K      <- 3
+These are the summary statistics for a large number of initializations by using parallel execution for each k-means and CLARA:
 
-# Prepare cluster
+```{r, cache=TRUE, warning=FALSE, message=FALSE}
+
+set.seed(123)
+k_vals <- c(15, 16)
+n_runs <- 100
+
+#Worker function for a single k-means silhouette
+km_silhouette <- function(i, dat, diss_mat, k) {
+  km  <- kmeans(dat, centers = k, nstart = 1, iter.max = 100)
+  ss  <- silhouette(km$cluster, diss_mat)
+  mean(ss[, "sil_width"])
+}
+
+#Worker function for a single CLARA silhouette
+clara_silhouette <- function(i, dat, diss_mat, k, samples = 5) {
+  cr <- clara(dat, k = k, samples = samples, pamLike = TRUE)
+  ss <- silhouette(cr$clustering, diss_mat)
+  mean(ss[, "sil_width"])
+}
+
+#Launch cluster
 ncores <- detectCores() - 1
 cl     <- makeCluster(ncores)
+clusterExport(cl, c("df_scaled", "dist_matrix", "km_silhouette",
+                    "clara_silhouette", "n_runs"))
+clusterEvalQ(cl, library(cluster))
 
-# Export data and packages to each worker
-clusterExport(cl, c("df_scaled", "K"))
-clusterEvalQ(cl, { library(cluster) })
-
-#Parallel k-means WSS over n_runs
-wss_vals <- parSapply(cl, 1:n_runs, function(i) {
-  # one single-start kmeans
-  km <- kmeans(df_scaled, centers = K, nstart = 1, iter.max = 100)
-  km$tot.withinss
+#Parallel runs & summaries
+results <- lapply(k_vals, function(k) {
+  #k-means
+  km_sils <- parSapply(cl, 1:n_runs,
+                       km_silhouette,
+                       dat     = df_scaled,
+                       diss_mat= dist_matrix,
+                       k       = k)
+  #CLARA
+  clara_sils <- parSapply(cl, 1:n_runs,
+                          clara_silhouette,
+                          dat     = df_scaled,
+                          diss_mat= dist_matrix,
+                          k       = k,
+                          samples = 5)
+  
+  #Summarize
+  cat("\n===== K =", k, "===== \n")
+  cat("k-means avg. silhouette:\n")
+  print(summary(km_sils))
+  cat("SD =", round(sd(km_sils), 4), "\n\n")
+  
+  cat("CLARA avg. silhouette:\n")
+  print(summary(clara_sils))
+  cat("SD =", round(sd(clara_sils), 4), "\n")
+  
+  list(kmeans = km_sils, clara = clara_sils)
 })
+names(results) <- paste0("K", k_vals)
 
-#Parallel CLARA silhouette over n_runs
-sil_vals <- parSapply(cl, 1:n_runs, function(i) {
-  clara_res <- clara(df_scaled, k = K, samps = 5, pamLike = TRUE)
-  mean(silhouette(clara_res$clustering,
-                  dist(df_scaled, method = "euclidean"))[, "sil_width"])
-})
-
-stopCluster(cl) 
-
-# Quick summaries
-summary(wss_vals)
-sd(wss_vals)
-
-summary(sil_vals)
-sd(sil_vals)
+stopCluster(cl)
 ```
 
 d\)
 
-```{r}
-#Gap statistic for k-means on the scaled data
+```{r, warning=FALSE, message=FALSE, cache=TRUE}
 set.seed(123)
-gap_km <- clusGap(
+gap_km_fast <- clusGap(
   df_scaled,
-  FUN       = kmeans,
-  K.max     = 10,    # test K = 1..10
-  B         = 50,    # 50 bootstrap samples
-  verbose   = FALSE
+  FUN      = kmeans,
+  K.max    = 20,
+  B        = 10,
+  verbose  = FALSE,
+  detectCores()-1
 )
+plot(gap_km_fast,main = "Gap Statistic vs. Number of Clusters", xlab = "K", ylab = "Gap statistic")
+print(gap_km_fast, method="firstSEmax")
 
-#Plot the Gap statistic
-plot(
-  gap_km,
-  main = "Gap Statistic vs. K (k-means)",
-  xlab = "Number of clusters K",
-  ylab = "Gap statistic"
-)
-
-#Extract suggested K
-print(gap_km, method = "firstmax")
 ```
+
+The gap statistic peaks at k=3 (gap ≈ 2.88) and then steadily falls, even where the silhouette scores were highest at k=15 (gap ≈ 2.14) and K=16K=16K=16 (gap ≈ 1.97). Silhouette, in contrast, keeps rising to favor many small, tight clusters, peaking at 15–16 (≈ 0.47). You can choose 3 for a broad, noise‐robust solution or 15–16 for a fine‐grained, highly cohesive one.
