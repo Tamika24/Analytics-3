@@ -43,7 +43,8 @@ In order to gather descriptive statistics for the data, prior checks were conduc
 ```{r}
 #|label: tbl-dscrp
 #| echo: false
-kable(summary(df), caption="Tabular summary of the descriptive statistics of the data")     
+kable(summary(df), caption="Tabular summary of the descriptive statistics of the data")   
+
 ```
 
 The dataset contains 5000 observations of 2 numeric variables, both containing all integer values.
@@ -56,14 +57,23 @@ However, in both cases, the medians are relatively near their respective means, 
 
 b\)
 
-Euclidean distance is used as the primary distance metric. This is due to several reasons. Both variables are continuous and numeric. Additionally, despite V2 having a much wider range than V1, the variables are on fairly comparable scales after standardization and will consequently contribute equally to the distance metric. Furthermore, the data is roughly symmetric. This implies balanced variation around the mean, such that the mean is a good central point. Euclidean distance is centered around the mean — so it behaves well under symmetry.
+Euclidean distance is used as the primary distance metric. This is due to several reasons.
+
+The data is low dimensional, with both variables being continuous and numeric, implying suitability for the Euclidean measure.
+
+Additionally, despite V2 having a much wider range than V1, the variables are on fairly comparable scales after standardization and will consequently contribute equally to the distance metric.
+
+Furthermore, the data is roughly symmetric. This implies balanced variation around the mean, such that the mean is a good central point. Euclidean distance is centered around the mean — so it behaves well under symmetry.
+
+As we'll see later, these variables are practically uncorrelated, which further motivates this choice of distance metric.
 
 c\)
 
-To explore potential relationships and structure in the data, a pairs plot was constructed using the two standardized variables, V1 and V2.
+To explore potential relationships and structure in the data, a pairs plot was constructed using the two standardised variables, V1 and V2.
 
 ```{r, warning=FALSE, message=FALSE}
 #| echo: false
+#| label: fig-pairs
 #| caption: "Pair plot showing univariate and bivariate distributions for V1 and V2"
 df_scaled <- scale(df)
 ggpairs(as.data.frame(df_scaled))
@@ -72,63 +82,88 @@ ggpairs(as.data.frame(df_scaled))
 
 The univariate distribution for V1 is clearly multi-modal, with at least 3 distinct high-density peaks roughly situated near quartile 1, the median and quartile 2, separated by shallow troughs. This suggests that there are three natural subgroups in V1, which can thus form 3 clusters.
 
-In contrast, V2’s univariate density is right‐skewed, with most observations clustered near the center and a long tail stretching out to the right towards the maximum. It is largely bimodal with at least 2 distinct high-density peaks situated roughly around quartile 1 and quartile 3, and separated by a discerningly low trough. Thus, two clusters can be formed in this regard.
+In contrast, V2’s univariate density is right‐skewed, with most observations clustered near the center and a long tail stretching out to the right towards the maximum. It is largely bimodal with at least 2 distinct high-density peaks situated roughly around quartile 1 and quartile 3, and separated by a discerningly low trough. Thus, at least two clusters can be formed in this regard.
 
 The pairwise scatterplot forms a roughly elliptical, symmetric cloud centered at (0,0) with no clear diagonal stretch. As expected the correlation between V1 and V2 is nearly zero, indicating that there is an extremely weak positive linear relationship between the variables- essentially no linear relationship and thus both variables contribute independently to the clustering structure. Because there is visually no distinct groups in this plot, this indicates that the clustering structure is not aligned along a single axis. This means the data doesn’t show a clear vertical or horizontal separation and so might be split diagonally or in more complex patterns. This suggests clustering requires looking at combinations of both variables, not just one.
 
+The shape of a distribution has a direct impact on how meaningful the mean is as a measure of central tendency. In a symmetric distribution, the mean and median are typically very close, and the mean lies at the center of the data. This makes it a reliable summary of where the bulk of the values lie.
+
+However, in skewed distributions, the mean can be misleading. In a right-skewed distribution (with a long tail to the right), the mean is pulled upward by large values, and ends up being greater than the median. This inflates the apparent "center" of the data. In contrast, a left-skewed distribution pulls the mean downward, below the median, due to small or extreme low values. In both cases, the mean no longer accurately reflects the central bulk of the data.
+
+If the distribution is multimodal—having more than one peak—the mean may fall between the modes, in a region where there are actually very few observations. This is particularly problematic in clustering, as it may cause the mean to represent no actual group well.
+
 d\)
 
-```{r, warning=FALSE, message= FALSE}
+Below is a histogram of the distance matrix representing the distribution of all pairwise Euclidean distances between observations, using standardised values.
+
+```{r, warning=FALSE, message=FALSE}
 #| echo: false
-dist_matrix <- dist(df_scaled, method="euclidean")
+dist_matrix <- dist(df_scaled, method="euclidean") # returns upper triangular matrix
 d_vals <- as.vector(dist_matrix)
-hist(d_vals, breaks=50, main="Pairwise distances", xlab="Distance")
+hist(d_vals, breaks=50, main="Pairwise distances between V1 and V2", xlab="Distance")
 
 ```
 
-The distance histogram clearly shows a single, broad peak centered around 1–2.2. This suggests the typical distance between any two observations once both variables are on the same scale. It suggests that if you pick two random data points, they’re most likely to be about two standard deviations apart overall. The bars taper off into a long right‐hand tail reaching out to about 5, which indicates a handful of point-pairs that are far apart (either true outliers or members of very distinct subgroups). At the extreme left, the histogram shape indicates that there are a few nearly zero distances corresponding to observations that are virtually identical on V1 and V2, meaning they would always merge immediately in a hierarchical tree or sit in the same k‐means cluster. Altogether, this moderate spread, neither all bunched up or wildly dispersed, suggests clustering algorithms will have enough contrast to pull apart dense regions.
+The histogram is right-skewed, with most distances concentrated in the lower-middle range and a gradual tapering toward higher distances. There is. a single, broad peak centered around the distances 1–2.2. This suggests the typical distance between any two observations once both variables are on the same scale. It implies that if you pick two random data points, they’re most likely to be about 2 standard deviations apart overall. This indicates that many observations are relatively close to one another in the standardised feature space, while a smaller number are much farther apart.
+
+This combination — a concentration of small distances and a tail of fewer large distances — implies that there may be tight clusters of points (small internal distances), and these clusters may be well separated from each other (large distances between clusters). That’s exactly what clustering algorithms aim to find: groups of observations that are more similar (closer) to each other than to observations in other groups.
+
+At the extreme left, the histogram shape indicates that there are a few nearly-zero distances, corresponding to observations that are virtually identical on V1 and V2. This implies that they would merge immediately in a hierarchical tree or sit in the same k‐means cluster.
 
 e\)
 
-We will compute the average distance for each observation i to all other points in the distance matrix:
-
 ```{r}
-#####USING AVG DIST AND 2 STAND DEV TO GET OUTLIERS
-avg_d   <- rowMeans(as.matrix(dist_matrix))
-mu      <- mean(avg_d)
-sigma   <- sd(avg_d)
-outliers <- which(avg_d > mu + 2*sigma)       # those beyond 2 SD above the mean
-outliers_top10 <- head(order(avg_d, decreasing=TRUE), 10)
+#| label: tbl-outlier
 
-#####USING BOXPLOTS HERE, NOT SURE WHICH WAY TO DO IT
-# Compute each point’s average distance
-d_mat     <- as.matrix(dist(df_scaled))
-avg_d     <- rowMeans(d_mat)
+centroid <- colMeans(df_scaled)
+euclidean_dist <- apply(df_scaled, 1, function(row) sqrt(sum((row - centroid)^2))) # scaled multivariate euclidean distance of each obs from mean of respective variable
 
-# Boxplot the average distances
-boxplot(avg_d, main="Avg. Distance to Other Points",
-        ylab="Avg Euclidean Distance")
+# Select top k multivariate outliers
+k <- 10
+top_k_indices <- order(euclidean_dist, decreasing = TRUE)[1:k]
+euclidean_outliers <- df[top_k_indices, ]  # Original data points
 
-#Identify those beyond the upper whisker (= Q3 + 1.5*IQR)
-stats     <- boxplot.stats(avg_d)$stats    # [1]=min [2]=Q1 [3]=med [4]=Q3 [5]=max
-upper_cut <- stats[4] + 1.5*(stats[4] - stats[2])
-outliers  <- which(avg_d > upper_cut)
-length(outliers)  # how many we found
+iqr_flags <- sapply(df, function(x) {
+  Q1 <- quantile(x, 0.25)
+  Q3 <- quantile(x, 0.75)
+  IQR_val <- Q3 - Q1
+  lower <- Q1 - 1.5 * iqr.v1
+  upper <- Q3 + 1.5 * iqr.v2
+  x < lower | x > upper
+})
 
-#If more than 10, take the top 10 by avg_d
-outliers_top10 <- head(order(avg_d[outliers], decreasing=TRUE), 10)
-outliers[outliers_top10]
+# Combine per-variable IQR flags (TRUE if outlier in any variable)
+univariate_outliers_indices <- which(apply(iqr_flags, 1, any))
+iqr_outliers <- df[univariate_outliers_indices, ]
+
+
+outlier_table <- data.frame(
+  Observation = top_k_indices,
+  Distance = round(euclidean_dist[top_k_indices], 2),
+  V1 = euclidean_outliers[, "V1"],
+  V2 = euclidean_outliers[, "V2"]
+)
+
+# Reset row names to 1:k for display
+rownames(outlier_table) <- 1:k
+
+# Print formatted table with kable
+kable(outlier_table, row.names = TRUE, caption="Top 10 outliers, with their observation number, euclidean distance from centroid, and variable values")
 
 ```
 
-The 10 observations with the largest average distance are our outliers. These points are much further from the bulk of the data. Each of these observations are on average, more than 2 standard deviations farther away from all other observations than a "normal" observation. This could influence the clustering algorithms because the k-means centroids will be pulled towards any of these extreme values and hierarchical merges will bind them at very high heights.
+Outliers were identified to ensure that extreme values do not distort the clustering process. Since k-means is highly sensitive to extreme points as it uses the mean as the cluster center, and even k-medoids can be affected, it is important to detect outliers early.
+
+Since we have a 2 dimensional dataset, we used a multivariate approach to detecting outliers: we calculated the standardised Euclidean distance between the observations and the centroid, and then selected those with the 10 largest distances. This approach takes both variables together into account and identifies points that are jointly far from the center.
+
+The only shortfall of this method would be that it does not flag observations that are very extreme in just one variable. CODE TO CHECK...However, the pairwise scatter plot in @fig-pairs indicates that no observation has this quality, and so our method is well-justified. Thus, we have accounted for both marginal and joint outliers.
 
 f\)
 
 ```{r}
-#Compute the correlation matrix on the standardized data
+#Compute the correlation matrix on the standardised data
 cor_mat <- cor(df_scaled)
-kable(cor_mat, caption="The correlation matrix on the standardized data")
+kable(cor_mat, caption="The correlation matrix on the standardised data")
 
 #Visualise
 corrplot(
@@ -143,11 +178,13 @@ corrplot(
 
 ```
 
-The diagonals are 1 because each variable is perfectly correlated with itself. The off-diagonals represent the association between the 2 variables. As we can see, the correlation between variable 1 and 2 is 0.07. The low correlation suggests that each variable has their own, independent information which influences the data set and suggests no redundancy. These variables won't dominate each other when clustering. Due to the variables being slightly uncorrelated, there would be no need to drop one or decorrelate them as the euclidean distance on the standardized data will treat the variables fairly.
+The diagonals are 1 because each variable is perfectly correlated with itself. The off-diagonals represent the association between the 2 variables. As we can see, the correlation between variable 1 and 2 is 0.07. The low correlation suggests that each variable has their own, independent information which influences the data set and suggests no redundancy. These variables won't dominate each other when clustering. Due to the variables being slightly uncorrelated, there would be no need to drop one or decorrelate them as the euclidean distance on the standardised data will treat the variables fairly.
 
 g\)
 
-Yes, we would standardize the data before computing any euclidean distances which is the distance metric we picked in the beginning. We would do this because the raw scales of the variables span hundreds of thousands, so this will drastically influence our clustering algorithms. The euclidean distance is calculated as the square root of the sum of the squares of the differences between corresponding coordinates. Without standardization, whichever variable has the largest absolute spread will dominate and lead to skewed results. By standardizing, each variable has equal contribution. Since both variables showed similar IQRs and no extreme skew in their middle ranges, standardizing simply aligns their scales without distorting the multi modal pattern in V1 or the slight skew in V2, ensuring our clustering sees genuine structure, not scale artifacts.
+The need for standardisation in the data is apparent. Firstly, as seen in the data description section of the report, both variables have wide ranges. Furthermore, both have fairly large standard deviations (V1: `r round(sd(df$V1), 2)`, V2: `r round(sd(df$V2), 2)`). However, V2 exhibits a wider spread than V1, which will cause it to disproportionately influence any distance measure. Thus, in our Euclidean distance calculation, V2 will dominate the distance, somewhat masking the contribution of V1.
+
+Since the variables are nearly uncorrelated as seen in @fig-pairs, their individual contributions to distance should be preserved. Failing to standardise would violate this by overweighting V2's contribution simply due to scale. By transforming both variables to have mean = 0 and standard deviation = 1, standardisation removes units and scale differences. This ensures that each variable contributes equally and appropriately to the total distance between observations, preserving the integrity of the multivariate structure in the dataset.
 
 # Question 2
 
