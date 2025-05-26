@@ -16,9 +16,13 @@ library(corrplot)
 library(ggplot2)
 ```
 
-# Question 1 : EDA
+## Introduction
 
-a\)
+xxx
+
+## 1. Exploratory Data Analysis
+
+### Data Description
 
 ```{r, warning=FALSE, message=FALSE}
 #| include: false
@@ -56,7 +60,7 @@ Even though their IQRs are similar, the variables have quite different ranges an
 
 However, in both cases, the medians are relatively near their respective means, and are roughly centered between the 1st and 3rd quartiles for each variable. This indicates that the core of the distributions are roughly symmetric.
 
-b\)
+### Distance Metric Selection
 
 Euclidean distance is used as the primary distance metric. This is due to several reasons.
 
@@ -68,7 +72,7 @@ Furthermore, the data is roughly symmetric. This implies balanced variation arou
 
 As we'll see later, these variables are practically uncorrelated, which further motivates this choice of distance metric.
 
-c\)
+### Pair Plot and Univariate Distributions
 
 To explore potential relationships and structure in the data, a pairs plot was constructed using the two standardised variables, V1 and V2.
 
@@ -93,7 +97,7 @@ However, in skewed distributions, the mean can be misleading. In a right-skewed 
 
 If the distribution is multimodal—having more than one peak—the mean may fall between the modes, in a region where there are actually very few observations. This is particularly problematic in clustering, as it may cause the mean to represent no actual group well.
 
-d\)
+### Pairwise Distance Distribution
 
 Below is a histogram of the distance matrix representing the distribution of all pairwise Euclidean distances between observations, using standardised values.
 
@@ -111,7 +115,7 @@ This combination — a concentration of small distances and a tail of fewer l
 
 At the extreme left, the histogram shape indicates that there are a few nearly-zero distances, corresponding to observations that are virtually identical on V1 and V2. This implies that they would merge immediately in a hierarchical tree or sit in the same k‐means cluster.
 
-e\)
+### Outlier Identification
 
 ```{r,  message=FALSE, warning=FALSE}
 #| label: tbl-outlier
@@ -143,31 +147,31 @@ Outliers were identified to ensure that extreme values do not distort the cluste
 
 Since we have a 2 dimensional dataset, we used a multivariate approach to detecting outliers: we calculated the standardised Euclidean distance between the observations and the centroid, and then selected those with the 10 largest distances. This approach takes both variables together into account and identifies points that are jointly far from the center.
 
-The only shortfall of this method would be that it does not flag observations that are very extreme in just one variable. CODE TO CHECK...However, the pairwise scatter plot in @fig-pairs indicates that no observation has this quality, and so our method is well-justified. Thus, we have accounted for both marginal and joint outliers.
+The only shortfall of this method would be that it does not flag observations that are very extreme in just one variable. However, the pairwise scatter plot in @fig-pairs indicates that no observation has this quality, and so our method is well-justified. Thus, we have accounted for both marginal and joint outliers.
 
-f\)
+### Correlation Analysis
 
 ```{r, message=FALSE, warning=FALSE}
 #Compute the correlation matrix on the standardized data
 cor_mat <- cor(df_scaled)
-kable(cor_mat, caption="The correlation matrix on the standardised data")
+kable(round(cor_mat, 2), caption="Correlation matrix on the standardised data")
 
 #Visualise
 corrplot(
   cor_mat,
-  method     = "circle",        # or "shade"/"pie" etc for the shapes
+  method     = "shade",        # or "shade"/"pie" etc for the shapes
   addCoef.col= "black",         # draw the correlation numbers in black
   number.cex = 0.8,             # shrink the text size if needed
   tl.cex     = 1.0,             # text size for variable names
-  title      = "Correlation Matrix with Coefficients",
+  title      = "Correlation Heatmap",
   mar        = c(0,0,1,0)       # make room for the title
 )
 
 ```
 
-The diagonals are 1 because each variable is perfectly correlated with itself. The off-diagonals represent the association between the 2 variables. As we can see, the correlation between variable 1 and 2 is 0.07. The low correlation suggests that each variable has their own, independent information which influences the data set and suggests no redundancy. These variables won't dominate each other when clustering. Due to the variables being slightly uncorrelated, there would be no need to drop one or decorrelate them as the euclidean distance on the standardised data will treat the variables fairly.
+The correlation heatmap visually illustrates the relationships between our variables. In our correlation heatmap, the diagonals are 1 because naturally each variable is perfectly correlated with itself. The off-diagonals represent the association between the 2 variables. As we can see, the correlation between variable 1 and 2 is 0.07. This low correlation suggests that each variable has their own, independent information which influences the data set and suggests no redundancy. These variables won't dominate each other when clustering. Due to the variables being slightly uncorrelated, there would be no need to drop one or decorrelate them or perform a pca rotation on them as the Euclidean distance on the standardised data will treat the variables fairly. Thus, standardisation of the variables is sufficient.
 
-g\)
+### Scaling Decision
 
 The need for standardisation in the data is apparent. Firstly, as seen in the data description section of the report, both variables have wide ranges. Furthermore, both have fairly large standard deviations (V1: `r round(sd(df$V1), 2)`, V2: `r round(sd(df$V2), 2)`). However, V2 exhibits a wider spread than V1, which will cause it to disproportionately influence any distance measure. Thus, in our Euclidean distance calculation, V2 will dominate the distance, somewhat masking the contribution of V1.
 
