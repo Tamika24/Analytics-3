@@ -14,10 +14,9 @@ library(GGally)
 library(parallel)
 library(corrplot)
 library(ggplot2)
-library(factoextra)
-library(gridExtra)
-
 ```
+
+
 
 ## Introduction
 
@@ -26,6 +25,8 @@ xxx
 ## 1. Exploratory Data Analysis
 
 ### Data Description
+
+
 
 ```{r, warning=FALSE, message=FALSE}
 #| include: false
@@ -46,7 +47,11 @@ iqr.v1 <- IQR(df$V1)
 iqr.v2 <- IQR(df$V2)
 ```
 
+
+
 In order to gather descriptive statistics for the data, prior checks were conducted: no missing values were found in the dataset and all data entries were of "integer" type. Thus, no data cleaning was necessary. The results from our descriptive analysis is outlined below.
+
+
 
 ```{r}
 #|label: tbl-dscrp
@@ -54,6 +59,8 @@ In order to gather descriptive statistics for the data, prior checks were conduc
 kable(summary(df), caption="Tabular summary of the descriptive statistics of the data")   
 
 ```
+
+
 
 The dataset contains 5000 observations of 2 numeric variables, both containing all integer values.
 
@@ -79,6 +86,8 @@ As we'll see later, these variables are practically uncorrelated, which further 
 
 To explore potential relationships and structure in the data, a pairs plot was constructed using the two standardised variables, V1 and V2.
 
+
+
 ```{r, warning=FALSE, message=FALSE}
 #| echo: false
 #| label: fig-pairs
@@ -87,6 +96,8 @@ df_scaled <- scale(df)
 ggpairs(as.data.frame(df_scaled))
 
 ```
+
+
 
 The univariate distribution for V1 is clearly multi-modal, with at least 3 distinct high-density peaks roughly situated near quartile 1, the median and quartile 2, separated by shallow troughs. This suggests that there are three natural subgroups in V1, which can thus form 3 clusters.
 
@@ -104,6 +115,8 @@ If the distribution is multimodal—having more than one peak—the mean may fal
 
 Below is a histogram of the distance matrix representing the distribution of all pairwise Euclidean distances between observations, using standardised values.
 
+
+
 ```{r, warning=FALSE, message=FALSE}
 #| echo: false
 dist_matrix <- dist(df_scaled, method="euclidean") # returns upper triangular matrix
@@ -112,6 +125,8 @@ hist(d_vals, breaks=50, main="Pairwise distances between V1 and V2", xlab="Dista
 
 ```
 
+
+
 The histogram is right-skewed, with most distances concentrated in the lower-middle range and a gradual tapering toward higher distances. There is. a single, broad peak centered around the distances 1–2.2. This suggests the typical distance between any two observations once both variables are on the same scale. It implies that if you pick two random data points, they’re most likely to be about 2 standard deviations apart overall. This indicates that many observations are relatively close to one another in the standardised feature space, while a smaller number are much farther apart.
 
 This combination — a concentration of small distances and a tail of fewer large distances — implies that there may be tight clusters of points (small internal distances), and these clusters may be well separated from each other (large distances between clusters). That’s exactly what clustering algorithms aim to find: groups of observations that are more similar (closer) to each other than to observations in other groups.
@@ -119,6 +134,8 @@ This combination — a concentration of small distances and a tail of fewer l
 At the extreme left, the histogram shape indicates that there are a few nearly-zero distances, corresponding to observations that are virtually identical on V1 and V2. This implies that they would merge immediately in a hierarchical tree or sit in the same k‐means cluster.
 
 ### Outlier Identification
+
+
 
 ```{r,  message=FALSE, warning=FALSE}
 #| label: tbl-outlier
@@ -146,6 +163,8 @@ kable(outlier_table, row.names = TRUE, caption="Top 10 outliers, with their obse
 
 ```
 
+
+
 Outliers were identified to ensure that extreme values do not distort the clustering process. Since k-means is highly sensitive to extreme points as it uses the mean as the cluster center, and even k-medoids can be affected, it is important to detect outliers early.
 
 Since we have a 2 dimensional dataset, we used a multivariate approach to detecting outliers: we calculated the standardised Euclidean distance between the observations and the centroid, and then selected those with the 10 largest distances. This approach takes both variables together into account and identifies points that are jointly far from the center.
@@ -154,15 +173,29 @@ The only shortfall of this method would be that it does not flag observations th
 
 ### Correlation Analysis
 
+
+
 ```{r, message=FALSE, warning=FALSE}
 #Compute the correlation matrix on the standardized data
 cor_mat <- cor(df_scaled)
 kable(round(cor_mat, 2), caption="Correlation matrix on the standardised data")
 
+#Visualise
+corrplot(
+  cor_mat,
+  method     = "shade",        # or "shade"/"pie" etc for the shapes
+  addCoef.col= "black",         # draw the correlation numbers in black
+  number.cex = 0.8,             # shrink the text size if needed
+  tl.cex     = 1.0,             # text size for variable names
+  title      = "Correlation Heatmap",
+  mar        = c(0,0,1,0)       # make room for the title
+)
 
 ```
 
-In our correlation matrix, the diagonals are 1 because naturally each variable is perfectly correlated with itself. The off-diagonals represent the association between the 2 variables. As we can see, the correlation between variable 1 and 2 is 0.07. This low correlation suggests that each variable has their own, independent information which influences the data set and suggests no redundancy. These variables won't dominate each other when clustering. Due to the variables being slightly uncorrelated, there would be no need to drop one or decorrelate them or perform a pca rotation on them as the Euclidean distance on the standardised data will treat the variables fairly. Thus, standardisation of the variables is sufficient.
+
+
+The correlation heatmap visually illustrates the relationships between our variables. In our correlation heatmap, the diagonals are 1 because naturally each variable is perfectly correlated with itself. The off-diagonals represent the association between the 2 variables. As we can see, the correlation between variable 1 and 2 is 0.07. This low correlation suggests that each variable has their own, independent information which influences the data set and suggests no redundancy. These variables won't dominate each other when clustering. Due to the variables being slightly uncorrelated, there would be no need to drop one or decorrelate them or perform a pca rotation on them as the Euclidean distance on the standardised data will treat the variables fairly. Thus, standardisation of the variables is sufficient.
 
 ### Scaling Decision
 
@@ -170,9 +203,11 @@ The need for standardisation in the data is apparent. Firstly, as seen in the da
 
 Since the variables are nearly uncorrelated as seen in @fig-pairs, their individual contributions to distance should be preserved. Failing to standardise would violate this by overweighting V2's contribution simply due to scale. By transforming both variables to have mean = 0 and standard deviation = 1, standardisation removes units and scale differences. This ensures that each variable contributes equally and appropriately to the total distance between observations, preserving the integrity of the multivariate structure in the dataset.
 
-## 2. Hyper-parameter Tuning
+# Question 2
 
-### Selecting K with Silhouette Method
+a\)
+
+
 
 ```{r, cache=TRUE, message=FALSE, warning=FALSE}
 #Compute average silhouette for k-means
@@ -199,11 +234,15 @@ plot(2:20, sil_pam, type = "b",
 par(mfrow = c(1,1))
 ```
 
-Both the k-means and k-medoids silhouette curves exhibit two natural “peaks” in the range K=2–20. First, there is a clear local maximum at k=3 (average silhouette ≈ 0.40 for both methods), indicating that three clusters capture the most prominent division in the data. Splitting into two clusters loses cohesion, while four or five clusters start to over-fragment the main groups. Beyond k=8, the silhouette steadily rises again, peaking around k=15–16 (≈ 0.47 for k-means, ≈ 0.48 for k-medoids), which suggests a much finer partition yields the tightest, most well-separated clusters, but that many clusters may be over‐splitting. Therefore, based on the average silhouette alone, two sensible choices emerge for both algorithms: a coarse segmentation at k=3 and a fine-grained segmentation at k=15 (or 16), depending on whether we want to prioritize broader overview or maximum cluster compactness.
 
-### Initialisation Sensitivity
 
-Here, we've chosen to demonstrate the sensitivity of the selected number of clusters with k=15-16.
+Both the k-means and k-medoids silhouette curves exhibit two natural “peaks” in the range K=2–20. First, there is a clear local maximum at k=3 (average silhouette ≈ 0.40 for both methods), indicating that three clusters capture the most prominent division in the data, splitting into two clusters loses cohesion, while four or five clusters start to over fragment the main groups. Beyond k=8, the silhouette steadily rises again, peaking around k=15–16 (≈ 0.47 for k-means, ≈ 0.48 for k-medoids), which suggests a much finer partition yields the tightest, most well-separated clusters, but that many clusters may be over‐splitting. Therefore, based on average silhouette alone, two sensible choices emerge for both algorithms: a coarse segmentation at k=3 and a fine-grained segmentation at k=15 (or 16), depending on whether we want to prioritize broader overview or maximum cluster compactness.
+
+b\)
+
+Here, we've chosen to demonstrate the sensitivity of the selected number of clusters with k=15-16 (It's assumed from the question that we should chose one selected number of clusters from the previous question and use that in this question)
+
+
 
 ```{r, cache=TRUE, warning=FALSE, message=FALSE}
 # Your chosen K values and number of replicates
@@ -294,11 +333,15 @@ best_runs
 
 ```
 
+
+
 For k=15 over 100 single-start k-means runs, the average silhouette widths ranged from about 0.405 to 0.479, with a median of 0.468 and a mean of 0.462 (SD ≈ 0.015). For k=16, the range was roughly 0.433–0.476, median 0.473, mean 0.467 (SD ≈ 0.011). In both cases the interquartile ranges (Q3–Q1) are very narrow (\~0.016 for k=15, \~0.011 for k=16), indicating that most random starts yield silhouettes within 1–2% of their respective medians.
 
 Despite the higher complexity of 15 or 16 clusters, k-means remains reasonably stable, the SDs are small relative to the means, and the majority of runs cluster within a tight band around the median silhouette. The slightly larger spread for k=15 (SD 0.015 vs. 0.011) suggests k=16 is marginally more robust to initialization. We would pick the two runs with the highest silhouette widths in each case as our “optimal” initializations, but given the low variability, any run in the top quartile would produce nearly the same clustering quality.
 
 The boxplot for k=15 shows the IQR lies between about 0.46 and 0.48 with no outliers, meaning nearly all starts yield very similar cluster quality. For k=16, the IQR is equally narrow but a few dots around 0.43–0.44 flag rare runs that fell into suboptimal basins. Because both boxes are short relative to the silhouette scale and their medians sit near the top of each IQR, we conclude that k-means at these k values are highly robust to initialization.
+
+
 
 ```{r, cache=TRUE, message=FALSE, warning=FALSE}
 set.seed(123)
@@ -381,13 +424,17 @@ best_clara
 
 ```
 
-Now, turning to k-medoids. For both k=15 and k=16, all 100 CLARA runs returned the exact same average silhouette widths—0.4416 for k=15 and 0.4368 for k=16, meaning the minimum, first quartile, median, mean, third quartile and maximum all coincide, and the standard deviation is zero. The resulting boxplots collapse to a single line and the density estimates form a degenerate smooth bump at that one value.
 
-This complete lack of spread tells us that, under CLARA’s subsampling (with 5 subsamples each of size (n/5), the medoid‐selection and final clustering are perfectly reproducible: every random subsample leads to the same clustering quality. In practice, that means zero sensitivity to initialization, CLARA is so stable here that there are no “better” or “worse” starts to distinguish.
 
-### Parallelised Initialisations 
+For both k=15 and k=16, all 100 CLARA runs returned the exact same average silhouette widths—0.4416 for k=15 and 0.4368 for k=16, meaning the minimum, first quartile, median, mean, third quartile and maximum all coincide, and the standard deviation is zero. The resulting boxplots collapse to a single line and the density estimates form a degenerate smooth bump at that one value.
 
-These are the summary statistics for a large number of initializations by using parallel execution for each k-means and CLARA for k-medoids:
+This complete lack of spread tells us that, under CLARA’s subsampling (with 5 subsamples each of size (n/5 ), the medoid‐selection and final clustering are perfectly reproducible: every random subsample leads to the same clustering quality. In practice, that means zero sensitivity to initialization, CLARA is so stable here that there are no “better” or “worse” starts to distinguish.
+
+c\)
+
+These are the summary statistics for a large number of initializations by using parallel execution for each k-means and CLARA:
+
+
 
 ```{r, cache=TRUE, warning=FALSE, message=FALSE}
 
@@ -449,7 +496,11 @@ names(results) <- paste0("K", k_vals)
 stopCluster(cl)
 ```
 
-### Gap Statistic 
+
+
+d\)
+
+
 
 ```{r, warning=FALSE, message=FALSE, cache=TRUE}
 set.seed(123)
@@ -466,186 +517,7 @@ print(gap_km_fast, method="firstSEmax")
 
 ```
 
-The gap statistic peaks at k=3 (gap ≈ 2.88) and then steadily falls, even where the silhouette scores were highest at k=15 (gap ≈ 2.14) and K=16 (gap ≈ 1.97). Silhouette, in contrast, keeps rising to favor many small, tight clusters, peaking at 15–16 (≈ 0.47). Thus this indicates that it is suitable to choose 3 for a broad, noise‐robust solution or 15–16 for a fine‐grained, highly cohesive one.
 
-## 3. Cluster Analysis
 
-### Cluster Assignments and Silhouette Scores
+The gap statistic peaks at k=3 (gap ≈ 2.88) and then steadily falls, even where the silhouette scores were highest at k=15 (gap ≈ 2.14) and K=16K=16K=16 (gap ≈ 1.97). Silhouette, in contrast, keeps rising to favor many small, tight clusters, peaking at 15–16 (≈ 0.47). You can choose 3 for a broad, noise‐robust solution or 15–16 for a fine‐grained, highly cohesive one.
 
-```{r}
-#| include: false
-set.seed(123)
-km3 <- kmeans(df_scaled, centers = 3, nstart = 25)
-km5 <- kmeans(df_scaled, centers = 15, nstart = 25)
-
-# --- K-medoids (PAM) configurations ---
-pam3 <- pam(df_scaled, k = 3)
-pam5 <- pam(df_scaled, k = 15)
-
-# --- Silhouette plots ---
-sil_km3 <- fviz_silhouette(silhouette(km3$cluster, dist(df_scaled))) + ggtitle("K-means (k=3)")
-sil_km5 <- fviz_silhouette(silhouette(km5$cluster, dist(df_scaled))) + ggtitle("K-means (k=15)")
-sil_pam3 <- fviz_silhouette(pam3) + ggtitle("K-medoids (k=3)")
-sil_pam5 <- fviz_silhouette(pam5) + ggtitle("K-medoids (k=15)")
-
-# --- Cluster plots ---
-clus_km3 <- fviz_cluster(km3, data = df_scaled) + ggtitle("K-means Clusters (k=3)")
-clus_km5 <- fviz_cluster(km5, data = df_scaled) + ggtitle("K-means Clusters (k=15)")
-clus_pam3 <- fviz_cluster(pam3, data = df_scaled) + ggtitle("K-medoids Clusters (k=3)")
-clus_pam5 <- fviz_cluster(pam5, data = df_scaled) + ggtitle("K-medoids Clusters (k=15)")
-```
-
-```{r, warning=FALSE, message=FALSE}
-#| fig-cap: "Silhouette plots for different k initialisations for k-means and k-medoids"    
-# Display in grid
-grid.arrange(sil_km3, clus_km3, sil_km5, clus_km5, sil_pam3, clus_pam3, sil_pam5, clus_pam5, ncol=2)
-
-```
-
-Across the four configurations, the two high-complexity solutions (k = 15) actually achieve higher average silhouette widths than the low-complexity ones (k = 3): k-means at k = 15 scores about 0.479, and PAM at k = 15 scores 0.478, compared with roughly 0.401 for both k-means and PAM at k = 3. In the silhouette bar plots, the k = 15 solutions show more consistently positive bars and fewer deep negatives, indicating that—even though they carve the data into many small clusters—the points tend to sit closer to their assigned medoid or centroid than to any other. Visually, however, the corresponding cluster plots reveal that those fifteen clusters are extremely narrow and often interleaved, subdividing what is fundamentally a three-group structure into many slices that are hard to interpret. By contrast, both k = 3 configurations produce three well-separated, compact “blobs” in the scatter projection—k-means slightly tighter (average silhouette 0.401) than PAM (average silhouette 0.401)—and align neatly with the data’s dominant patterns.
-
-Although from a pure silhouette-score perspective k-means with k = 15 is technically “best,” its innumerable tiny clusters offer little practical insight. If our sole criterion is maximizing average silhouette, we would choose k-means, k = 15; if we value interpretability and alignment with the data’s clear three-cluster structure, we instead favor k-means, k = 3 for its balance of cohesion, separation, and meaningful grouping.
-
-### Outlier Overlay 
-
-```{r}
-
-# Helper to build one plot with outliers overlaid
-make_outlier_plot <- function(clust_obj, data_scaled, top_k_indices, title) {
-  p <- fviz_cluster(
-    clust_obj,
-    data            = data_scaled,
-    geom            = "point",
-    show.clust.cent = FALSE
-  )
-  pd <- p$data
-  pd$orig_idx <- as.integer(rownames(pd))
-  pd$outlier  <- pd$orig_idx %in% top_k_indices
-  
-  p + 
-    geom_point(
-      data  = subset(pd, outlier),
-      aes(x = x, y = y),
-      shape = 17, size = 3.5, color = "red"
-    ) +
-    ggtitle(title)
-}
-
-# Generate each plot
-p_km3   <- make_outlier_plot(km3,   df_scaled, top_k_indices, "k-means (k = 3)")
-p_km15  <- make_outlier_plot(km15,  df_scaled, top_k_indices, "k-means (k = 15)")
-p_pam3  <- make_outlier_plot(pam3,  df_scaled, top_k_indices, "PAM (k = 3)")
-p_pam15 <- make_outlier_plot(pam15, df_scaled, top_k_indices, "PAM (k = 15)")
-
-# Arrange in a 2×2 grid
-grid.arrange(
-  p_km3,   p_km15,
-  p_pam3,  p_pam15,
-  ncol = 2,
-  top  = "Cluster Plots with Outliers Highlighted"
-)
-
-```
-
-Across all four clustering configurations, the ten red-triangle outliers—selected previously by their multivariate Euclidean distance from the global centroid—consistently fall along the periphery of clusters rather than forming isolated or singleton groups.
-
-In both k-means and PAM with k = 3, these points sit on the edges of the three clusters but maintain positive (or only slightly negative) silhouette widths, indicating they are still closer to their assigned centroid or medoid than to any alternative.
-
-When the data is over-partitioned into 15 clusters, each outlier is absorbed into one of many narrow, interleaved slices, boosting its silhouette width but yielding little substantive interpretability—hence the higher average silhouette at k = 15 despite the fragmentation.
-
-Although these outlier observations are the farthest from the overall mean, they do not unduly distort cluster centers or cohesion. Instead, truly disruptive “structural” outliers emerge as those with strongly negative silhouette values (e.g. \< −0.2), which lie closer to a neighboring cluster’s center than to their own (for example, obs. 237 and 412, which have the lowest silhouette widths).
-
-### Post-Processing
-
-In the clustering results, negative silhouette scores indicate observations that are potentially misclassified — they are closer, on average, to another cluster than to their assigned one.
-
-We manually reassigned each negatively-scoring observation to the second-closest cluster (based on squared distance to cluster centers or medoids). We then re-evaluated the clustering quality using the mean silhouette width before and after reassignment:
-
-```{r, warning=FALSE, message=FALSE}
-
-# --- Prepare distance matrix and cluster objects ---
-# Ensure rownames exist
-rownames(df) <- seq_len(nrow(df))
-df_scaled <- scale(df)
-
-dmat  <- dist(df_scaled)
-km3   <- kmeans(df_scaled, centers = 3,  nstart = 25)
-km15  <- kmeans(df_scaled, centers = 15, nstart = 25)
-pam3  <- pam(df_scaled, k = 3)
-pam15 <- pam(df_scaled, k = 15)
-
-clust_list <- list(
-  "k-means (k=3)"  = km3,
-  "k-means (k=15)" = km15,
-  "PAM (k=3)"      = pam3,
-  "PAM (k=15)"     = pam15
-)
-
-results <- data.frame(
-  Method            = character(),
-  NumNegative       = integer(),
-  MeanSilBefore     = numeric(),
-  MeanSilAfter      = numeric(),
-  stringsAsFactors  = FALSE
-)
-
-for (nm in names(clust_list)) {
-  cl <- clust_list[[nm]]
-  labs <- if (grepl("^PAM", nm)) cl$clustering else cl$cluster
-  
-  sil_obj <- silhouette(labs, dmat)
-  sil_df  <- as.data.frame(sil_obj)
-  sil_df$orig_idx <- as.integer(rownames(sil_df))
-  
-  neg_idx <- which(sil_df$sil_width < 0)
-  
-  # Determine centers (centroids or medoids)
-  if (grepl("^PAM", nm)) {
-    medoids <- cl$medoids
-    medoid_idx <- match(medoids, rownames(df_scaled))  # Convert to numeric row indices
-    centers <- df_scaled[medoid_idx, , drop = FALSE]
-  } else {
-    centers <- cl$centers
-  }
-  
-  # Compute squared-distance matrix [n × k]
-  dist_to_cent <- t(sapply(1:nrow(df_scaled), function(i) {
-    apply(centers, 1, function(cen) sum((df_scaled[i,] - cen)^2))
-  }))
-  
-  second_cl <- sapply(neg_idx, function(i) {
-    ord <- order(dist_to_cent[i, ])
-    ord[2]
-  })
-  
-  new_labs <- labs
-  new_labs[neg_idx] <- second_cl
-  
-  mean_before <- mean(sil_df$sil_width)
-  mean_after  <- mean(silhouette(new_labs, dmat)[, "sil_width"])
-  
-  results <- rbind(results, data.frame(
-    Method        = nm,
-    NumNegative   = length(neg_idx),
-    MeanSilBefore = round(mean_before, 3),
-    MeanSilAfter  = round(mean_after, 3),
-    stringsAsFactors = FALSE
-  ))
-}
-
-# Display the results with kable
-kable(
-  results,
-  caption = "Comparison of Mean Silhouette Before and After Manual Reassignment",
-  align   = c("l", "r", "r", "r")
-)
-
-```
-
-In all cases, reassigning negatively-scoring observations did not improve the overall mean silhouette width.
-
-In fact, for PAM, the average silhouette decreased slightly after reassignment, indicating that the second-closest cluster may not always be a better fit overall.
-
-This suggests that local reassignment based solely on pairwise distance may not yield global improvement, especially in cases where the cluster structure is complex.
-
-## Conclusion
