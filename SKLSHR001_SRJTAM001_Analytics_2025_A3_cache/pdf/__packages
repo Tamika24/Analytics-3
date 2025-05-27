@@ -7,3 +7,12 @@ GGally
 corrplot
 factoextra
 gridExtra
+dplyr
+tidyverse
+tibble
+tidyr
+readr
+purrr
+stringr
+forcats
+lubridate
