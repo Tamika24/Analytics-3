@@ -21,7 +21,7 @@ library(gridExtra)
 
 ## Introduction
 
-xxx
+Clustering seeks to uncover hidden structure in data by grouping observations into coherent subsets. In this assignment, we will work through a streamlined cluster-analysis pipeline on a synthetic dataset, making and justifying each key choice along the way- from exploratory data analysis and distance-metric selection, through hyperparameter tuning (how many clusters and how to initialize), to comparing k-means versus k-medoids. Rather than hunting for a single “correct” answer, we will practice the iterative, judgment-driven process that real‐world clustering demands, learning to balance parsimony, cohesion, robustness, and interpretability. By the end, we will not only have two cluster solutions in hand but also a clear narrative explaining why each decision was made and how it shapes the results.
 
 ## 1. Exploratory Data Analysis
 
@@ -121,8 +121,8 @@ At the extreme left, the histogram shape indicates that there are a few nearly-z
 ### Outlier Identification
 
 ```{r,  message=FALSE, warning=FALSE}
+#| echo: false
 #| label: tbl-outlier
-
 centroid <- colMeans(df_scaled)
 euclidean_dist <- apply(df_scaled, 1, function(row) sqrt(sum((row - centroid)^2))) # scaled multivariate euclidean distance of each obs from mean of respective variable
 
@@ -155,6 +155,7 @@ The only shortfall of this method would be that it does not flag observations th
 ### Correlation Analysis
 
 ```{r, message=FALSE, warning=FALSE}
+#| echo: false
 #Compute the correlation matrix on the standardized data
 cor_mat <- cor(df_scaled)
 kable(round(cor_mat, 2), caption="Correlation matrix on the standardised data")
@@ -175,6 +176,7 @@ Since the variables are nearly uncorrelated as seen in @fig-pairs, their indivi
 ### Selecting K with Silhouette Method
 
 ```{r, cache=TRUE, message=FALSE, warning=FALSE}
+#| echo: false
 #Compute average silhouette for k-means
 sil_km <- sapply(2:20, function(K) {
   km  <- kmeans(df_scaled, centers = K, nstart = 50, iter.max = 100)
@@ -206,6 +208,7 @@ Both the k-means and k-medoids silhouette curves exhibit two natural “peaks”
 Here, we've chosen to demonstrate the sensitivity of the selected number of clusters with k=15-16.
 
 ```{r, cache=TRUE, warning=FALSE, message=FALSE}
+#| echo: false
 # Your chosen K values and number of replicates
 k_vals <- c(15, 16)
 runs   <- 100
@@ -239,15 +242,6 @@ sil_results <- lapply(k_vals, function(k) {
 names(sil_results) <- paste0("K", k_vals)
 
 #Visualise side by side
-par(mfrow = c(1, length(k_vals)))
-for(i in seq_along(k_vals)) {
-  k <- k_vals[i]
-  sils <- sil_results[[i]]
-  boxplot(sils,
-          main = paste("k-means avg. silhouette\nK =", k),
-          ylab = "Avg. silhouette")
-}
-par(mfrow = c(1,1))
 par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
 # Density for K = 15
 d15 <- density(sil_results[["K15"]])
@@ -298,9 +292,8 @@ For k=15 over 100 single-start k-means runs, the average silhouette widths range
 
 Despite the higher complexity of 15 or 16 clusters, k-means remains reasonably stable, the SDs are small relative to the means, and the majority of runs cluster within a tight band around the median silhouette. The slightly larger spread for k=15 (SD 0.015 vs. 0.011) suggests k=16 is marginally more robust to initialization. We would pick the two runs with the highest silhouette widths in each case as our “optimal” initializations, but given the low variability, any run in the top quartile would produce nearly the same clustering quality.
 
-The boxplot for k=15 shows the IQR lies between about 0.46 and 0.48 with no outliers, meaning nearly all starts yield very similar cluster quality. For k=16, the IQR is equally narrow but a few dots around 0.43–0.44 flag rare runs that fell into suboptimal basins. Because both boxes are short relative to the silhouette scale and their medians sit near the top of each IQR, we conclude that k-means at these k values are highly robust to initialization.
-
 ```{r, cache=TRUE, message=FALSE, warning=FALSE}
+#| echo: false
 set.seed(123)
 k_vals  <- c(15, 16)
 n_runs  <- 100
@@ -325,18 +318,6 @@ sil_clara_results <- lapply(k_vals, function(k) {
   sils
 })
 names(sil_clara_results) <- paste0("K", k_vals)
-
-#Boxplots side‐by‐side
-par(mfrow = c(1, length(k_vals)), mar = c(4, 4, 2, 1))
-for(i in seq_along(k_vals)) {
-  k    <- k_vals[i]
-  sils <- sil_clara_results[[i]]
-  boxplot(sils,
-          main  = paste("CLARA silhouette\nK =", k),
-          ylab  = "Avg. silhouette",
-          range = 0)
-}
-par(mfrow = c(1, 1))
 
 par(mfrow = c(1, length(k_vals)), mar = c(4,4,2,1))
 
@@ -381,29 +362,29 @@ best_clara
 
 ```
 
-Now, turning to k-medoids. For both k=15 and k=16, all 100 CLARA runs returned the exact same average silhouette widths—0.4416 for k=15 and 0.4368 for k=16, meaning the minimum, first quartile, median, mean, third quartile and maximum all coincide, and the standard deviation is zero. The resulting boxplots collapse to a single line and the density estimates form a degenerate smooth bump at that one value.
+Now, turning to k-medoids. For both k=15 and k=16, all 100 CLARA runs returned the exact same average silhouette widths, 0.4416 for k=15 and 0.4368 for k=16, meaning the minimum, first quartile, median, mean, third quartile and maximum all coincide, and the standard deviation is zero.
 
 This complete lack of spread tells us that, under CLARA’s subsampling (with 5 subsamples each of size (n/5), the medoid‐selection and final clustering are perfectly reproducible: every random subsample leads to the same clustering quality. In practice, that means zero sensitivity to initialization, CLARA is so stable here that there are no “better” or “worse” starts to distinguish.
 
-### Parallelised Initialisations 
+### Parallelised Initialisations
 
 These are the summary statistics for a large number of initializations by using parallel execution for each k-means and CLARA for k-medoids:
 
-```{r, cache=TRUE, warning=FALSE, message=FALSE}
-
+```{r, cache=TRUE, warning=FALSE, message=FALSE, results='asis'}
+#| echo: false
 set.seed(123)
 k_vals <- c(15, 16)
 n_runs <- 100
 
 #Worker function for a single k-means silhouette
-km_silhouette <- function(i, dat, diss_mat, k) {
+km_sil <- function(i, dat, diss_mat, k) {
   km  <- kmeans(dat, centers = k, nstart = 1, iter.max = 100)
   ss  <- silhouette(km$cluster, diss_mat)
   mean(ss[, "sil_width"])
 }
 
 #Worker function for a single CLARA silhouette
-clara_silhouette <- function(i, dat, diss_mat, k, samples = 5) {
+clara_sil <- function(i, dat, diss_mat, k, samples = 5) {
   cr <- clara(dat, k = k, samples = samples, pamLike = TRUE)
   ss <- silhouette(cr$clustering, diss_mat)
   mean(ss[, "sil_width"])
@@ -415,43 +396,33 @@ cl     <- makeCluster(ncores)
 clusterExport(cl, c("df_scaled", "dist_matrix", "km_silhouette",
                     "clara_silhouette", "n_runs"))
 clusterEvalQ(cl, library(cluster))
-
-#Parallel runs & summaries
-results <- lapply(k_vals, function(k) {
-  #k-means
-  km_sils <- parSapply(cl, 1:n_runs,
-                       km_silhouette,
-                       dat     = df_scaled,
-                       diss_mat= dist_matrix,
-                       k       = k)
-  #CLARA
-  clara_sils <- parSapply(cl, 1:n_runs,
-                          clara_silhouette,
-                          dat     = df_scaled,
-                          diss_mat= dist_matrix,
-                          k       = k,
-                          samples = 5)
-  
-  #Summarize
-  cat("\n===== K =", k, "===== \n")
-  cat("k-means avg. silhouette:\n")
-  print(summary(km_sils))
-  cat("SD =", round(sd(km_sils), 4), "\n\n")
-  
-  cat("CLARA avg. silhouette:\n")
-  print(summary(clara_sils))
-  cat("SD =", round(sd(clara_sils), 4), "\n")
-  
-  list(kmeans = km_sils, clara = clara_sils)
+# run and store
+all_stats <- map_dfr(k_vals, function(k) {
+  km_sils    <- parSapply(cl, 1:n_runs, km_sil, dat=df_scaled, diss=dist_matrix, k=k)
+  clara_sils <- parSapply(cl, 1:n_runs, clara_sil, dat=df_scaled, diss=dist_matrix, k=k)
+  stopifnot(length(km_sils)==n_runs, length(clara_sils)==n_runs)
+  tibble(
+    K           = k,
+    Algorithm   = c("k-means","CLARA"),
+    Min         = c(min(km_sils),    min(clara_sils)),
+    Q1          = c(quantile(km_sils, 0.25), quantile(clara_sils, 0.25)),
+    Median      = c(median(km_sils), median(clara_sils)),
+    Mean        = c(mean(km_sils),   mean(clara_sils)),
+    Q3          = c(quantile(km_sils, 0.75), quantile(clara_sils, 0.75)),
+    Max         = c(max(km_sils),    max(clara_sils)),
+    SD          = c(sd(km_sils),     sd(clara_sils))
+  )
 })
-names(results) <- paste0("K", k_vals)
-
 stopCluster(cl)
+kable(all_stats,
+      caption = "Stability of Average Silhouette over 100 Inits for K=15,16",
+      digits = c(0,0,2,3,3,3,3,3,3))
 ```
 
-### Gap Statistic 
+### Gap Statistic
 
 ```{r, warning=FALSE, message=FALSE, cache=TRUE}
+#| echo: false
 set.seed(123)
 gap_km_fast <- clusGap(
   df_scaled,
@@ -473,7 +444,7 @@ The gap statistic peaks at k=3 (gap ≈ 2.88) and then steadily falls, even wher
 ### Cluster Assignments and Silhouette Scores
 
 ```{r}
-#| include: false
+#| echo: false
 set.seed(123)
 km3 <- kmeans(df_scaled, centers = 3, nstart = 25)
 km5 <- kmeans(df_scaled, centers = 15, nstart = 25)
@@ -496,6 +467,7 @@ clus_pam5 <- fviz_cluster(pam5, data = df_scaled) + ggtitle("K-medoids Clusters 
 ```
 
 ```{r, warning=FALSE, message=FALSE}
+#| echo: false
 #| fig-cap: "Silhouette plots for different k initialisations for k-means and k-medoids"    
 # Display in grid
 grid.arrange(sil_km3, clus_km3, sil_km5, clus_km5, sil_pam3, clus_pam3, sil_pam5, clus_pam5, ncol=2)
@@ -506,10 +478,10 @@ Across the four configurations, the two high-complexity solutions (k = 15) actua
 
 Although from a pure silhouette-score perspective k-means with k = 15 is technically “best,” its innumerable tiny clusters offer little practical insight. If our sole criterion is maximizing average silhouette, we would choose k-means, k = 15; if we value interpretability and alignment with the data’s clear three-cluster structure, we instead favor k-means, k = 3 for its balance of cohesion, separation, and meaningful grouping.
 
-### Outlier Overlay 
+### Outlier Overlay
 
 ```{r}
-
+#| echo: false
 # Helper to build one plot with outliers overlaid
 make_outlier_plot <- function(clust_obj, data_scaled, top_k_indices, title) {
   p <- fviz_cluster(
@@ -562,8 +534,8 @@ In the clustering results, negative silhouette scores indicate observations that
 We manually reassigned each negatively-scoring observation to the second-closest cluster (based on squared distance to cluster centers or medoids). We then re-evaluated the clustering quality using the mean silhouette width before and after reassignment:
 
 ```{r, warning=FALSE, message=FALSE}
-
-# --- Prepare distance matrix and cluster objects ---
+#| echo: false
+# Prepare distance matrix and cluster objects 
 # Ensure rownames exist
 rownames(df) <- seq_len(nrow(df))
 df_scaled <- scale(df)
@@ -649,3 +621,9 @@ In fact, for PAM, the average silhouette decreased slightly after reassignment,
 This suggests that local reassignment based solely on pairwise distance may not yield global improvement, especially in cases where the cluster structure is complex.
 
 ## Conclusion
+
+In this project, both k-means and k-medoids were able to recover sensible structure from our synthetic dataset—but each had its own strengths and weaknesses. K-means excelled at rapidly partitioning the data into tight, roughly spherical clusters and produced its highest average‐silhouette scores at k=15–16, demonstrating that it can tease out fine‐grained subgroups when cohesion is your priority. However, k-means showed a small but non-negligible sensitivity to initialization (a handful of poor starts) and is known to be vulnerable to outliers and non-spherical shapes.
+
+By contrast, k-medoids (via CLARA) delivered perfectly stable silhouette scores across hundreds of random subsamples—even at k=15–16—highlighting its robustness to both initialization and extreme observations. Its downside was computational cost on full-data PAM calls, which we mitigated with subsampling; this approach may miss some global minima but proved more than adequate for our low‐dimensional setting.
+
+If time allowed, the workflow could be improved by transforming or down‐weighting V2’s heavy tail, experimenting with alternative distance metrics (e.g. Manhattan or Mahalanobis), and incorporating dimension-reduction or ensemble clustering to validate solutions. Further external validation or domain‐driven cluster profiling would also help confirm which k and which algorithm best serve the ultimate analytical goals.
